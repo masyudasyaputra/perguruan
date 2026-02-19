@@ -21,13 +21,13 @@
                         </x-nav-link>
                     @endif
 
-                    {{-- 2. Dropdown Manajemen (Hanya untuk Admin) --}}
+                    {{-- 2. Dropdown Manajemen Data (PB, Pengprov, Pengcab) --}}
                     @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab']))
                         <div class="hidden sm:flex sm:items-center sm:ms-4">
                             <x-dropdown align="left" width="48">
                                 <x-slot name="trigger">
                                     <button
-                                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.dojos.*') ? 'text-indigo-700 font-bold' : '' }}">
+                                        class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.dojos.*') || request()->routeIs('admin.provinces.*') || request()->routeIs('admin.officials.*') ? 'text-indigo-700 font-bold' : '' }}">
                                         <div>{{ __('Manajemen Data') }}</div>
                                         <div class="ms-1">
                                             <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg"
@@ -43,13 +43,22 @@
                                 <x-slot name="content">
                                     {{-- Submenu User (Hanya PB & Pengprov) --}}
                                     @if (in_array(Auth::user()->role, ['pb', 'pengprov']))
-                                        <x-dropdown-link :href="route('admin.users.index')">
+                                        <x-dropdown-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                                             {{ __('Manajemen User') }}
+                                        </x-dropdown-link>
+
+                                        <x-dropdown-link :href="route('admin.provinces.index')" :active="request()->routeIs('admin.provinces.*')">
+                                            {{ __('Data Wilayah (Provinsi)') }}
                                         </x-dropdown-link>
                                     @endif
 
+                                    {{-- Submenu Pengurus (PB, Pengprov, Pengcab) --}}
+                                    <x-dropdown-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')">
+                                        {{ __('Data Pengurus') }}
+                                    </x-dropdown-link>
+
                                     {{-- Submenu Dojo (PB, Pengprov, Pengcab) --}}
-                                    <x-dropdown-link :href="route('admin.dojos.index')">
+                                    <x-dropdown-link :href="route('admin.dojos.index')" :active="request()->routeIs('admin.dojos.*')">
                                         {{ __('Manajemen Dojo') }}
                                     </x-dropdown-link>
                                 </x-slot>
@@ -65,8 +74,8 @@
                         <button
                             class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
                             <div class="flex flex-col items-end">
-                                <div>{{ Auth::user()->name }}</div>
-                                <div class="text-[10px] uppercase font-bold text-indigo-500">
+                                <div class="font-bold text-gray-800">{{ Auth::user()->name }}</div>
+                                <div class="text-[9px] uppercase font-black text-indigo-600 tracking-tighter">
                                     {{ str_replace('_', ' ', Auth::user()->role) }}
                                 </div>
                             </div>
@@ -82,11 +91,15 @@
                     </x-slot>
 
                     <x-slot name="content">
-                        <x-dropdown-link :href="route('profile.edit')">{{ __('Profile') }}</x-dropdown-link>
+                        <x-dropdown-link :href="route('profile.edit')">
+                            {{ __('Profile') }}
+                        </x-dropdown-link>
+
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <x-dropdown-link :href="route('logout')"
-                                onclick="event.preventDefault(); this.closest('form').submit();">
+                                onclick="event.preventDefault();
+                                                this.closest('form').submit();">
                                 {{ __('Log Out') }}
                             </x-dropdown-link>
                         </form>
@@ -109,7 +122,7 @@
         </div>
     </div>
 
-    <div :class="{ 'block': open, 'hidden': !open }" class="hidden sm:hidden">
+    <div :class="{ 'block': open, 'hidden': !open }" class="hidden sm:hidden shadow-inner bg-gray-50">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo'])
                 ? route('admin.dashboard')
@@ -121,9 +134,17 @@
                 <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                     {{ __('Manajemen User') }}
                 </x-responsive-nav-link>
+
+                <x-responsive-nav-link :href="route('admin.provinces.index')" :active="request()->routeIs('admin.provinces.*')">
+                    {{ __('Data Wilayah (Provinsi)') }}
+                </x-responsive-nav-link>
             @endif
 
             @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab']))
+                <x-responsive-nav-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')">
+                    {{ __('Data Pengurus') }}
+                </x-responsive-nav-link>
+
                 <x-responsive-nav-link :href="route('admin.dojos.index')" :active="request()->routeIs('admin.dojos.*')">
                     {{ __('Manajemen Dojo') }}
                 </x-responsive-nav-link>
@@ -133,15 +154,19 @@
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="px-4">
                 <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
+                <div class="font-medium text-[10px] text-indigo-600 uppercase font-bold">{{ Auth::user()->role }}</div>
             </div>
 
             <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">{{ __('Profile') }}</x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('profile.edit')">
+                    {{ __('Profile') }}
+                </x-responsive-nav-link>
+
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <x-responsive-nav-link :href="route('logout')"
-                        onclick="event.preventDefault(); this.closest('form').submit();">
+                        onclick="event.preventDefault();
+                                        this.closest('form').submit();">
                         {{ __('Log Out') }}
                     </x-responsive-nav-link>
                 </form>

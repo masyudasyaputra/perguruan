@@ -4,7 +4,9 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\DojoController;
-use App\Http\Controllers\Member\MemberDashboardController; // Pastikan ini di-import
+use App\Http\Controllers\Admin\OfficialController;
+use App\Http\Controllers\Admin\ProvinceController;
+use App\Http\Controllers\Member\MemberDashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Models\City;
 use App\Models\Dojo;
@@ -13,51 +15,45 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// --- API DROPDOWN DINAMIS (Dikelompokkan agar rapi) ---
+// --- API DROPDOWN DINAMIS (Public/Auth) ---
 Route::prefix('api')->group(function () {
     Route::get('/cities/{province_id}', function ($province_id) {
         return City::where('province_id', $province_id)->get();
     });
-
     Route::get('/dojos/{city_id}', function ($city_id) {
         return Dojo::where('city_id', $city_id)->get();
     });
 });
 
-// --- DASHBOARD BERDASARKAN ROLE ---
-
-// Dashboard untuk Pengurus (PB, Pengprov, Pengcab, Dojo)
-Route::middleware(['auth', 'role:pb,pengprov,pengcab,admin_dojo'])->group(function () {
-    Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
-});
-
-// Dashboard untuk Member
+// --- DASHBOARD MEMBER ---
 Route::middleware(['auth', 'role:member'])->group(function () {
     Route::get('/dashboard', [MemberDashboardController::class, 'index'])->name('dashboard');
 });
 
-// --- MANAJEMEN USER (Hanya PB dan Pengprov) ---
-Route::middleware(['auth', 'role:pb,pengprov'])->group(function () {
-    Route::resource('admin/users', UserController::class)->names([
-        'index' => 'admin.users.index',
-        'create' => 'admin.users.create',
-        'store' => 'admin.users.store',
-        'show' => 'admin.users.show',
-        'edit' => 'admin.users.edit',
-        'update' => 'admin.users.update',
-        'destroy' => 'admin.users.destroy',
-    ]);
-    Route::resource('admin/dojos', DojoController::class)->names([
-        'index' => 'admin.dojos.index',
-        'create' => 'admin.dojos.create',
-        'store' => 'admin.dojos.store',
-        'edit' => 'admin.dojos.edit',
-        'update' => 'admin.dojos.update',
-        'destroy' => 'admin.dojos.destroy',
-    ]);
+// --- AREA ADMIN & PENGURUS (Satu Pintu) ---
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+
+    // 1. AKSES SEMUA LEVEL ADMIN (PB, Pengprov, Pengcab, Admin Dojo)
+    Route::middleware(['role:pb,pengprov,pengcab,admin_dojo'])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    });
+
+    // 2. AKSES STRUKTURAL (PB, Pengprov, Pengcab) - Manajemen Organisasi
+    Route::middleware(['role:pb,pengprov,pengcab'])->group(function () {
+        Route::resource('dojos', DojoController::class);
+        Route::resource('officials', OfficialController::class);
+    });
+
+    // 3. AKSES TERBATAS TINGKAT TINGGI (PB & Pengprov)
+    Route::middleware(['role:pb,pengprov'])->group(function () {
+        // Lihat & Kelola Sebaran Wilayah Nasional/Provinsi
+        Route::resource('provinces', ProvinceController::class);
+        // Kelola Akun Pengguna (User Management)
+        Route::resource('users', UserController::class);
+    });
 });
 
-// --- PROFILE UMUM ---
+// --- PROFILE UMUM (User Terautentikasi) ---
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
