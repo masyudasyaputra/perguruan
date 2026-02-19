@@ -11,9 +11,6 @@ use Illuminate\Support\Facades\DB;
 
 class ProvinceController extends Controller
 {
-    /**
-     * Menampilkan daftar semua provinsi dengan statistik Dojo dan Pengcab
-     */
     public function index()
     {
         $provinces = Province::withCount([
