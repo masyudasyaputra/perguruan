@@ -17,7 +17,7 @@
                         {{ __('Dashboard') }}
                     </x-nav-link>
 
-                    {{-- 2. Dropdown Manajemen Data (Struktural Only) --}}
+                    {{-- 2. Dropdown Manajemen Data --}}
                     @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab']))
                         <div class="hidden sm:flex sm:items-center sm:ms-4">
                             <x-dropdown align="left" width="48">
@@ -43,16 +43,16 @@
                                         </x-dropdown-link>
                                     @endif
 
-                                    {{-- HANYA PB: Bisa Lihat Data Wilayah --}}
+                                    {{-- HANYA PB: Bisa Kelola Wilayah --}}
                                     @if (Auth::user()->role === 'pb')
                                         <x-dropdown-link :href="route('admin.provinces.index')" :active="request()->routeIs('admin.provinces.*')">
                                             {{ __('Data Wilayah (Provinsi)') }}
                                         </x-dropdown-link>
                                     @endif
 
-                                    <hr class="border-gray-100">
+                                    <hr class="border-gray-100 my-1">
 
-                                    {{-- PB, PENGPROV, PENGCAB: Kelola Inti --}}
+                                    {{-- PB, PENGPROV, PENGCAB: Kelola Operasional --}}
                                     <x-dropdown-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')">
                                         {{ __('Data Pengurus') }}
                                     </x-dropdown-link>
@@ -121,7 +121,7 @@
         </div>
     </div>
 
-    {{-- Responsive Menu --}}
+    {{-- Responsive Menu (Mobile) --}}
     <div :class="{ 'block': open, 'hidden': !open }" class="hidden sm:hidden shadow-inner bg-gray-50">
         <div class="pt-2 pb-3 space-y-1">
             <x-responsive-nav-link :href="in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo'])
@@ -130,15 +130,15 @@
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
 
-            @if (Auth::user()->role === 'pb')
-                <x-responsive-nav-link :href="route('admin.provinces.index')" :active="request()->routeIs('admin.provinces.*')">
-                    {{ __('Data Wilayah (Provinsi)') }}
-                </x-responsive-nav-link>
-            @endif
-
             @if (in_array(Auth::user()->role, ['pb', 'pengprov']))
                 <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')">
                     {{ __('Manajemen User') }}
+                </x-responsive-nav-link>
+            @endif
+
+            @if (Auth::user()->role === 'pb')
+                <x-responsive-nav-link :href="route('admin.provinces.index')" :active="request()->routeIs('admin.provinces.*')">
+                    {{ __('Data Wilayah (Provinsi)') }}
                 </x-responsive-nav-link>
             @endif
 
@@ -146,7 +146,6 @@
                 <x-responsive-nav-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')">
                     {{ __('Data Pengurus') }}
                 </x-responsive-nav-link>
-
                 <x-responsive-nav-link :href="route('admin.dojos.index')" :active="request()->routeIs('admin.dojos.*')">
                     {{ __('Manajemen Dojo') }}
                 </x-responsive-nav-link>

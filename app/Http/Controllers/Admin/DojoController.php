@@ -11,12 +11,15 @@ use Carbon\Carbon;
 
 class DojoController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
-        $query = Dojo::with(['city.province']);
 
-        // 1. Filter data berdasarkan role
+        // Load relasi wilayah dan hitung member dari tabel users
+        $query = Dojo::with(['city.province'])->withCount('members');
+
+        // --- 1. PROTEKSI ROLE & WILAYAH (WAJIB) ---
+        // Ini memastikan data di luar wilayah akun login tidak akan pernah terbuka
         if ($user->role === 'pengprov') {
             $query->whereHas('city', function ($q) use ($user) {
                 $q->where('province_id', $user->province_id);
@@ -25,15 +28,48 @@ class DojoController extends Controller
             $query->where('city_id', $user->city_id);
         }
 
-        // 2. Clone query untuk menghitung Warning SK (agar filter role tetap berlaku)
+        // --- 2. LOGIKA FILTER (Berjalan di dalam batasan Role) ---
+        // Filter Search Nama Dojo
+        if ($request->filled('search')) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
+        // Filter Kota (Hanya untuk Admin & Pengprov)
+        if ($request->filled('city_id') && $user->role !== 'pengcab') {
+            $query->where('city_id', $request->city_id);
+        }
+
+        // Filter Provinsi (Hanya untuk Admin Pusat)
+        if ($request->filled('province_id') && $user->role === 'admin') {
+            $query->whereHas('city', function ($q) use ($request) {
+                $q->where('province_id', $request->province_id);
+            });
+        }
+
+        // --- 3. PENGAMBILAN DATA DROPDOWN FILTER ---
+        // Kita batasi pilihan dropdown agar sesuai wilayah login
+        if ($user->role === 'admin') {
+            $provinces = Province::all();
+            $cities = $request->filled('province_id')
+                ? City::where('province_id', $request->province_id)->get()
+                : collect();
+        } elseif ($user->role === 'pengprov') {
+            $provinces = Province::where('id', $user->province_id)->get();
+            $cities = City::where('province_id', $user->province_id)->get();
+        } else {
+            $provinces = collect();
+            $cities = collect();
+        }
+
+        // --- 4. EKSEKUSI DATA ---
         $warningQuery = clone $query;
         $warningDojos = $warningQuery->where('sk_expiry_date', '>', now())
             ->where('sk_expiry_date', '<=', now()->addDays(30))
             ->get();
 
-        $dojos = $query->latest()->paginate(10);
+        $dojos = $query->latest()->paginate(10)->withQueryString();
 
-        return view('admin.dojos.index', compact('dojos', 'warningDojos'));
+        return view('admin.dojos.index', compact('dojos', 'warningDojos', 'provinces', 'cities'));
     }
 
     public function create()

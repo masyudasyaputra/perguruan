@@ -36,16 +36,24 @@ class RegisteredUserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'province_id' => ['required'],
+            'city_id' => ['required'],
+            'dojo_id' => ['required'],
+            'belt_level_id' => ['required', 'exists:belt_levels,id'], // Pastikan tabel belt_levels ada
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'province_id' => $request->province_id,
+            'city_id' => $request->city_id,
+            'dojo_id' => $request->dojo_id,
+            'belt_level_id' => $request->belt_level_id, // Gunakan ID dari dropdown
+            'role' => 'member',
         ]);
 
         event(new Registered($user));
-
         Auth::login($user);
 
         return redirect(route('dashboard', absolute: false));

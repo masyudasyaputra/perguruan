@@ -44,16 +44,17 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::resource('officials', OfficialController::class);
     });
 
-    // 3. AKSES WILAYAH (Disatukan agar Tombol Edit/Show Berfungsi)
-    // Kita berikan akses ke PB dan Pengprov di sini
+    // 3. AKSES MANAJEMEN USER & WILAYAH (PB & Pengprov)
+    // Manajemen User dipindah ke sini agar Pengprov bisa mengelola akun di wilayahnya
     Route::middleware(['role:pb,pengprov'])->group(function () {
+        Route::resource('users', UserController::class);
         Route::resource('provinces', ProvinceController::class);
     });
 
-    // 4. AKSES KHUSUS PB (Manajemen User)
-    Route::middleware(['role:pb'])->group(function () {
-        Route::resource('users', UserController::class);
-    });
+    /* Catatan: Jika Anda ingin membatasi agar 'pengprov' TIDAK bisa menambah provinsi baru 
+       tapi tetap bisa mengelola user, Anda bisa memecahnya. Namun secara struktural, 
+       pengaturan di atas adalah yang paling efisien untuk kebutuhan Anda saat ini.
+    */
 });
 
 // --- PROFILE UMUM ---

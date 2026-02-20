@@ -10,16 +10,28 @@ use Illuminate\Http\Request;
 
 class OfficialController extends Controller
 {
-    public function index()
+    public function index(Request $request) // Tambahkan Request agar pencarian tetap jalan
     {
         $user = auth()->user();
+
+        // 1. Inisialisasi query dengan eager loading yang kamu butuhkan
         $query = Official::with(['province', 'city', 'city.dojos']);
 
-        // Filter berdasarkan wilayah user login
+        // 2. PROTEKSI WILAYAH: Hanya tampilkan data di bawah Pengprov yang sedang login
         if ($user->role === 'pengprov') {
             $query->where('province_id', $user->province_id);
         }
+        // Jika nanti ada role pengcab, ini proteksi tambahannya (opsional)
+        elseif ($user->role === 'pengcab') {
+            $query->where('city_id', $user->city_id);
+        }
 
+        // 3. FITUR PENCARIAN: Jangan sampai hilang agar user tidak bingung
+        if ($request->has('search') && $request->search != '') {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+
+        // 4. Eksekusi query (Gunakan paginate jika data mulai banyak, atau get() sesuai kode kamu)
         $officials = $query->latest()->get();
 
         return view('admin.officials.index', compact('officials'));

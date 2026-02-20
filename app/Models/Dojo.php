@@ -28,4 +28,10 @@ class Dojo extends Model
     {
         return $this->belongsTo(City::class);
     }
+
+    public function members()
+    {
+        // Dojo memiliki banyak User melalui kolom dojo_id
+        return $this->hasMany(User::class, 'dojo_id');
+    }
 }
