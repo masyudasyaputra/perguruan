@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between items-center">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight uppercase tracking-tighter">
                 {{ __('Manajemen Data Dojo') }}
             </h2>
             <a href="{{ route('admin.dojos.create') }}"
@@ -16,10 +16,32 @@
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            {{-- Alert Success --}}
+
+            {{-- NOTIFIKASI MASA BERLAKU SK (30 HARI LAGI) --}}
+            @if ($warningDojos->count() > 0)
+                <div class="mb-6 bg-amber-50 border-l-4 border-amber-500 p-4 shadow-sm rounded-r-lg">
+                    <div class="flex items-center">
+                        <svg class="h-5 w-5 text-amber-500 me-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <h3 class="text-sm font-bold text-amber-800">Perhatian: {{ $warningDojos->count() }} Dojo Perlu
+                            Perpanjangan SK!</h3>
+                    </div>
+                    <div class="mt-2 text-xs text-amber-700">
+                        Dojo berikut akan tamat tempo SK dalam masa kurang 30 hari:
+                        <span class="font-bold italic">
+                            {{ $warningDojos->pluck('name')->implode(', ') }}
+                        </span>.
+                    </div>
+                </div>
+            @endif
+
+            {{-- Flash Success/Error --}}
             @if (session('success'))
                 <div class="mb-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 shadow-sm" role="alert">
-                    <p class="font-bold text-sm">Berhasil!</p>
+                    <p class="font-bold text-sm text-green-800">Berhasil!</p>
                     <p class="text-xs">{{ session('success') }}</p>
                 </div>
             @endif
@@ -31,86 +53,82 @@
                             <thead>
                                 <tr class="bg-gray-50">
                                     <th
-                                        class="px-6 py-4 text-left text-xs font-black text-gray-600 uppercase tracking-widest">
-                                        Nama Dojo & SK
-                                    </th>
+                                        class="px-6 py-4 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                        Dojo & SK</th>
                                     <th
-                                        class="px-6 py-4 text-left text-xs font-black text-gray-600 uppercase tracking-widest">
-                                        Wilayah (Kota/Prov)
-                                    </th>
+                                        class="px-6 py-4 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                        Wilayah</th>
                                     <th
-                                        class="px-6 py-4 text-left text-xs font-black text-gray-600 uppercase tracking-widest">
-                                        Sensei & Kontak
-                                    </th>
+                                        class="px-6 py-4 text-left text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                        Sensei</th>
                                     <th
-                                        class="px-6 py-4 text-center text-xs font-black text-gray-600 uppercase tracking-widest">
-                                        Status SK
-                                    </th>
+                                        class="px-6 py-4 text-center text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                        Status SK</th>
                                     <th
-                                        class="px-6 py-4 text-center text-xs font-black text-gray-600 uppercase tracking-widest">
-                                        Aksi
-                                    </th>
+                                        class="px-6 py-4 text-center text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                        Aksi</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-100">
                                 @forelse ($dojos as $dojo)
-                                    <tr class="hover:bg-gray-50 transition duration-150">
-                                        {{-- Nama & SK --}}
+                                    @php
+                                        // Set ke startOfDay agar hitungan harinya bulat (integer)
+                                        $now = \Carbon\Carbon::now()->startOfDay();
+                                        $expiryDate = \Carbon\Carbon::parse($dojo->sk_expiry_date)->startOfDay();
+
+                                        $isExpired = $expiryDate->isPast();
+                                        // Hitung selisih hari secara absolut
+                                        $daysRemaining = (int) $now->diffInDays($expiryDate, false);
+                                        $isExpiringSoon = !$isExpired && $daysRemaining <= 30;
+                                    @endphp
+                                    <tr
+                                        class="hover:bg-gray-50 transition duration-150 {{ $isExpiringSoon ? 'bg-amber-50/30' : '' }}">
                                         <td class="px-6 py-4">
-                                            <div class="font-bold text-gray-900 text-sm uppercase">{{ $dojo->name }}
-                                            </div>
+                                            <div class="font-black text-gray-900 text-sm uppercase leading-none">
+                                                {{ $dojo->name }}</div>
                                             <div
-                                                class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block mt-1">
-                                                SK: {{ $dojo->sk_number ?? 'Batal/Belum Ada' }}
+                                                class="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded inline-block mt-2 border border-indigo-100">
+                                                SK: {{ $dojo->sk_number ?? 'Batal' }}
                                             </div>
                                         </td>
 
-                                        {{-- Wilayah --}}
-                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                            <div class="font-semibold text-gray-700">{{ $dojo->city->name }}</div>
-                                            <div class="text-[10px] text-gray-400 uppercase font-bold">
-                                                {{ $dojo->city->province->name }}
-                                            </div>
-                                        </td>
-
-                                        {{-- Sensei & Alamat --}}
                                         <td class="px-6 py-4 text-sm">
-                                            <div class="text-gray-900 font-bold">Sensei: {{ $dojo->sensei_name ?? '-' }}
-                                            </div>
-                                            <div class="text-[11px] text-gray-500 truncate w-48 leading-tight mt-1"
-                                                title="{{ $dojo->address }}">
-                                                {{ $dojo->address }}
-                                            </div>
+                                            <div class="font-bold text-gray-700 leading-none">
+                                                {{ $dojo->city->name ?? '-' }}</div>
+                                            <div
+                                                class="text-[10px] text-gray-400 uppercase font-bold mt-1 tracking-tighter">
+                                                {{ $dojo->city->province->name ?? '-' }}</div>
                                         </td>
 
-                                        {{-- Status Otomatis Berdasarkan SK --}}
+                                        <td class="px-6 py-4 text-sm">
+                                            <div class="text-gray-900 font-bold leading-none">
+                                                {{ $dojo->sensei_name ?? '-' }}</div>
+                                            <div class="text-[10px] text-gray-400 mt-1 italic">
+                                                {{ $dojo->phone_number ?? 'Tiada No. Tel' }}</div>
+                                        </td>
+
                                         <td class="px-6 py-4 text-center">
-                                            @if ($dojo->is_active)
+                                            @if ($isExpired)
                                                 <span
-                                                    class="inline-flex px-3 py-1 text-[10px] font-black uppercase rounded-full bg-green-100 text-green-700 border border-green-200">
-                                                    Aktif
-                                                </span>
-                                                <div class="text-[9px] text-gray-400 mt-1 font-semibold">
-                                                    Hingga:
-                                                    {{ \Carbon\Carbon::parse($dojo->sk_expiry_date)->format('d M Y') }}
-                                                </div>
+                                                    class="px-3 py-1 text-[9px] font-black uppercase rounded-full bg-red-100 text-red-700 border border-red-200">Expired</span>
+                                            @elseif ($isExpiringSoon)
+                                                <span
+                                                    class="px-3 py-1 text-[9px] font-black uppercase rounded-full bg-amber-100 text-amber-700 border border-amber-200 animate-pulse">Hampir
+                                                    Habis</span>
+                                                <div class="text-[9px] text-amber-600 mt-1 font-bold">
+                                                    {{ $daysRemaining }} Hari Lagi</div>
                                             @else
                                                 <span
-                                                    class="inline-flex px-3 py-1 text-[10px] font-black uppercase rounded-full bg-red-100 text-red-700 border border-red-200 shadow-sm">
-                                                    Expired
-                                                </span>
-                                                <div class="text-[9px] text-red-500 mt-1 font-black italic">
-                                                    Masa SK Habis!
-                                                </div>
+                                                    class="px-3 py-1 text-[9px] font-black uppercase rounded-full bg-green-100 text-green-700 border border-green-200">Aktif</span>
                                             @endif
+                                            <div class="text-[9px] text-gray-400 mt-1 font-semibold italic">
+                                                {{ $expiryDate->format('d/m/Y') }}</div>
                                         </td>
 
-                                        {{-- Tombol Aksi --}}
                                         <td class="px-6 py-4 text-center text-sm font-medium">
                                             <div class="flex justify-center items-center space-x-2">
                                                 <a href="{{ route('admin.dojos.edit', $dojo->id) }}"
-                                                    class="bg-yellow-400 hover:bg-yellow-500 text-white p-1.5 rounded shadow-sm transition"
-                                                    title="Edit Dojo">
+                                                    class="bg-indigo-500 hover:bg-indigo-600 text-white p-1.5 rounded shadow-sm transition transform hover:scale-110">
                                                     <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                         viewBox="0 0 24 24">
                                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -119,13 +137,12 @@
                                                         </path>
                                                     </svg>
                                                 </a>
-
                                                 <form action="{{ route('admin.dojos.destroy', $dojo->id) }}"
-                                                    method="POST" onsubmit="return confirm('Hapus data dojo ini?')">
+                                                    method="POST"
+                                                    onsubmit="return confirm('Hapus Dojo {{ $dojo->name }}?')">
                                                     @csrf @method('DELETE')
                                                     <button type="submit"
-                                                        class="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded shadow-sm transition"
-                                                        title="Hapus Dojo">
+                                                        class="bg-rose-500 hover:bg-rose-600 text-white p-1.5 rounded shadow-sm transition transform hover:scale-110">
                                                         <svg class="w-4 h-4" fill="none" stroke="currentColor"
                                                             viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -140,31 +157,13 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="px-6 py-12 text-center">
-                                            <div class="flex flex-col items-center">
-                                                <svg class="w-12 h-12 text-gray-200 mb-3" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4">
-                                                    </path>
-                                                </svg>
-                                                <span class="text-gray-400 italic">Belum ada data dojo yang
-                                                    terdaftar.</span>
-                                            </div>
-                                        </td>
+                                        <td colspan="5" class="px-6 py-10 text-center text-gray-400 italic text-sm">
+                                            Belum ada data dojo.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
                         </table>
                     </div>
-
-                    {{-- Pagination --}}
-                    @if ($dojos->hasPages())
-                        <div class="mt-6">
-                            {{ $dojos->links() }}
-                        </div>
-                    @endif
                 </div>
             </div>
         </div>

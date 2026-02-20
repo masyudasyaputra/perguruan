@@ -3,44 +3,39 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Official; // Pastikan ini ada
-use App\Models\Province; // Tambahkan jika perlu untuk create form
+use App\Models\Official;
+use App\Models\Province;
+use App\Models\City; // Tambahkan ini agar bisa pilih kota saat edit
 use Illuminate\Http\Request;
 
 class OfficialController extends Controller
 {
-    /**
-     * Menampilkan daftar semua pengurus
-     */
     public function index()
     {
-        // Ambil semua data untuk tabel utama
-        $officials = Official::with(['province', 'city'])->latest()->get();
+        $user = auth()->user();
+        $query = Official::with(['province', 'city', 'city.dojos']);
 
-        // Data kategori (Pastikan 'level' sesuai dengan input di form: 'provinsi' & 'pengcab')
-        $provincialOfficials = Official::where('level', 'provinsi')->with('province')->get();
-        $cityOfficials = Official::where('level', 'pengcab')->with('city.province')->get();
+        // Filter berdasarkan wilayah user login
+        if ($user->role === 'pengprov') {
+            $query->where('province_id', $user->province_id);
+        }
 
-        return view('admin.officials.index', compact('officials', 'provincialOfficials', 'cityOfficials'));
+        $officials = $query->latest()->get();
+
+        return view('admin.officials.index', compact('officials'));
     }
 
-    /**
-     * Menampilkan form tambah (Opsional jika Anda butuh data provinsi)
-     */
     public function create()
     {
         $provinces = Province::orderBy('name')->get();
         return view('admin.officials.create', compact('provinces'));
     }
 
-    /**
-     * Menyimpan data pengurus baru
-     */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'level' => 'required|in:provinsi,pengcab', // Sesuaikan dengan value radio button di form
+            'level' => 'required|in:provinsi,pengcab',
             'province_id' => 'required|exists:provinces,id',
             'city_id' => 'required_if:level,pengcab|nullable|exists:cities,id',
             'position' => 'required|string',
@@ -49,9 +44,53 @@ class OfficialController extends Controller
             'sk_expiry_date' => 'required|date',
         ]);
 
-        Official::create($request->all());
+        Official::create($validated);
 
         return redirect()->route('admin.officials.index')
             ->with('success', 'Data Pengurus berhasil ditambahkan!');
+    }
+
+    /**
+     * INI FUNGSI YANG HILANG (Penyebab Tombol Edit Error)
+     */
+    public function edit(Official $official)
+    {
+        $provinces = Province::orderBy('name')->get();
+        // Ambil data kota berdasarkan provinsi yang sedang dipilih si pengurus
+        $cities = City::where('province_id', $official->province_id)->get();
+
+        return view('admin.officials.edit', compact('official', 'provinces', 'cities'));
+    }
+
+    /**
+     * FUNGSI UNTUK MENYIMPAN PERUBAHAN
+     */
+    public function update(Request $request, Official $official)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'level' => 'required|in:provinsi,pengcab',
+            'province_id' => 'required|exists:provinces,id',
+            'city_id' => 'required_if:level,pengcab|nullable|exists:cities,id',
+            'position' => 'required|string',
+            'phone_number' => 'nullable|string|max:20',
+            'sk_number' => 'nullable|string|max:100',
+            'sk_expiry_date' => 'required|date',
+        ]);
+
+        $official->update($validated);
+
+        return redirect()->route('admin.officials.index')
+            ->with('success', 'Data Pengurus berhasil diperbarui!');
+    }
+
+    /**
+     * FUNGSI HAPUS
+     */
+    public function destroy(Official $official)
+    {
+        $official->delete();
+        return redirect()->route('admin.officials.index')
+            ->with('success', 'Data Pengurus berhasil dihapus!');
     }
 }

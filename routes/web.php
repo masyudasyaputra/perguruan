@@ -15,7 +15,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// --- API DROPDOWN DINAMIS (Public/Auth) ---
+// --- API DROPDOWN DINAMIS ---
 Route::prefix('api')->group(function () {
     Route::get('/cities/{province_id}', function ($province_id) {
         return City::where('province_id', $province_id)->get();
@@ -30,30 +30,33 @@ Route::middleware(['auth', 'role:member'])->group(function () {
     Route::get('/dashboard', [MemberDashboardController::class, 'index'])->name('dashboard');
 });
 
-// --- AREA ADMIN & PENGURUS (Satu Pintu) ---
+// --- AREA ADMIN & PENGURUS ---
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
 
-    // 1. AKSES SEMUA LEVEL ADMIN (PB, Pengprov, Pengcab, Admin Dojo)
+    // 1. AKSES SEMUA LEVEL ADMIN (Dashboard Utama)
     Route::middleware(['role:pb,pengprov,pengcab,admin_dojo'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     });
 
-    // 2. AKSES STRUKTURAL (PB, Pengprov, Pengcab) - Manajemen Organisasi
+    // 2. AKSES STRUKTURAL (Kelola Dojo & Pengurus)
     Route::middleware(['role:pb,pengprov,pengcab'])->group(function () {
         Route::resource('dojos', DojoController::class);
         Route::resource('officials', OfficialController::class);
     });
 
-    // 3. AKSES TERBATAS TINGKAT TINGGI (PB & Pengprov)
+    // 3. AKSES WILAYAH (Disatukan agar Tombol Edit/Show Berfungsi)
+    // Kita berikan akses ke PB dan Pengprov di sini
     Route::middleware(['role:pb,pengprov'])->group(function () {
-        // Lihat & Kelola Sebaran Wilayah Nasional/Provinsi
         Route::resource('provinces', ProvinceController::class);
-        // Kelola Akun Pengguna (User Management)
+    });
+
+    // 4. AKSES KHUSUS PB (Manajemen User)
+    Route::middleware(['role:pb'])->group(function () {
         Route::resource('users', UserController::class);
     });
 });
 
-// --- PROFILE UMUM (User Terautentikasi) ---
+// --- PROFILE UMUM ---
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

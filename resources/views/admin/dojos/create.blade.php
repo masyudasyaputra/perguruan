@@ -7,7 +7,6 @@
 
     <div class="py-12">
         <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
-            {{-- Form Card --}}
             <div class="bg-white p-8 shadow-sm rounded-xl border-l-8 border-indigo-600">
                 <form action="{{ route('admin.dojos.store') }}" method="POST">
                     @csrf
@@ -30,6 +29,7 @@
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 uppercase tracking-tight">Nama
                                     Sensei (Kepala)</label>
+                                {{-- Pastikan nama field ini 'sensei_name' ada di migration Anda --}}
                                 <input type="text" name="sensei_name"
                                     class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="Masukkan nama lengkap">
@@ -75,35 +75,55 @@
                         </div>
                     </div>
 
-                    {{-- Section 3: Lokasi --}}
+                    {{-- Section 3: Lokasi (ADAPTIVE BERDASARKAN ROLE) --}}
                     <div class="mb-8">
                         <h4 class="text-xs font-black uppercase tracking-widest text-indigo-600 mb-4 flex items-center">
                             <span class="bg-indigo-100 p-1 rounded-md mr-2">03</span>
                             Wilayah & Lokasi Latihan
                         </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label
-                                    class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Provinsi</label>
-                                <select id="province_id"
-                                    class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:ring-indigo-500">
-                                    <option value="">Pilih Provinsi</option>
-                                    @foreach ($provinces as $p)
-                                        <option value="{{ $p->id }}">{{ $p->name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
 
-                            <div>
-                                <label class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Kota /
-                                    Cabang</label>
-                                <select name="city_id" id="city_id"
-                                    class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:ring-indigo-500"
-                                    required>
-                                    <option value="">Pilih Kota</option>
-                                </select>
+                        @if (auth()->user()->role === 'pengcab')
+                            {{-- TAMPILAN UNTUK PENGPCAB: Otomatis terisi --}}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <input type="hidden" name="province_id" value="{{ auth()->user()->province_id }}">
+                                <input type="hidden" name="city_id" value="{{ auth()->user()->city_id }}">
+
+                                <div class="bg-gray-100 p-3 rounded-lg border border-gray-200">
+                                    <span class="text-[10px] font-bold text-gray-500 uppercase">Provinsi</span>
+                                    <p class="text-sm font-bold">{{ auth()->user()->province->name }}</p>
+                                </div>
+                                <div class="bg-gray-100 p-3 rounded-lg border border-gray-200">
+                                    <span class="text-[10px] font-bold text-gray-500 uppercase">Kota/Cabang</span>
+                                    <p class="text-sm font-bold">{{ auth()->user()->city->name }}</p>
+                                </div>
                             </div>
-                        </div>
+                        @else
+                            {{-- TAMPILAN UNTUK PB: Bebas pilih wilayah --}}
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <label
+                                        class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Provinsi</label>
+                                    <select name="province_id" id="province_id"
+                                        class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:ring-indigo-500"
+                                        required>
+                                        <option value="">Pilih Provinsi</option>
+                                        @foreach ($provinces as $p)
+                                            <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Kota /
+                                        Cabang</label>
+                                    <select name="city_id" id="city_id"
+                                        class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:ring-indigo-500"
+                                        required>
+                                        <option value="">Pilih Kota</option>
+                                    </select>
+                                </div>
+                            </div>
+                        @endif
 
                         <div class="mt-4">
                             <label class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Alamat Lengkap
@@ -132,23 +152,27 @@
 
     {{-- Script AJAX Wilayah --}}
     <script>
-        document.getElementById('province_id').addEventListener('change', function() {
-            const provinceId = this.value;
-            const citySelect = document.getElementById('city_id');
-            citySelect.innerHTML = '<option value="">Memuat data...</option>';
+        const provinceSelect = document.getElementById('province_id');
+        if (provinceSelect) {
+            provinceSelect.addEventListener('change', function() {
+                const provinceId = this.value;
+                const citySelect = document.getElementById('city_id');
+                citySelect.innerHTML = '<option value="">Memuat data...</option>';
 
-            if (provinceId) {
-                fetch(`/api/cities/${provinceId}`)
-                    .then(res => res.json())
-                    .then(data => {
-                        citySelect.innerHTML = '<option value="">Pilih Kota</option>';
-                        data.forEach(city => {
-                            citySelect.innerHTML += `<option value="${city.id}">${city.name}</option>`;
+                if (provinceId) {
+                    fetch(`/api/cities/${provinceId}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            citySelect.innerHTML = '<option value="">Pilih Kota</option>';
+                            data.forEach(city => {
+                                citySelect.innerHTML +=
+                                    `<option value="${city.id}">${city.name}</option>`;
+                            });
                         });
-                    });
-            } else {
-                citySelect.innerHTML = '<option value="">Pilih Kota</option>';
-            }
-        });
+                } else {
+                    citySelect.innerHTML = '<option value="">Pilih Kota</option>';
+                }
+            });
+        }
     </script>
 </x-app-layout>

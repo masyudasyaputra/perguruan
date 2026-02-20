@@ -8,12 +8,13 @@ class Dojo extends Model
 {
     protected $fillable = [
         'name',
-        'sk_number',
-        'sk_expiry_date',
+        'province_id',
         'city_id',
         'address',
+        'sensei_name',
         'phone_number',
-        'sensei_name'
+        'sk_number',
+        'sk_expiry_date'
     ];
     // Logika otomatis: Aktif jika SK belum expired
     public function getIsActiveAttribute()
