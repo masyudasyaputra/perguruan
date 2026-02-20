@@ -17,7 +17,7 @@
             </div>
 
             <a href="{{ route('admin.dojos.create') }}"
-                class="group relative inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-7 py-3 rounded-2xl text-sm font-bold shadow-[0_10px_20px_rgba(79,70,229,0.2)] transition-all duration-300 hover:-translate-y-1 active:scale-95 w-full md:w-auto">
+                class="group relative inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white px-7 py-3 rounded-2xl text-sm font-bold shadow-[0_10px_20px_rgba(79,70,229,0.2)] transition-all duration-300 hover:-translate-y-1 active:scale-95">
                 <svg class="w-5 h-5 me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path>
                 </svg>
@@ -60,7 +60,7 @@
             @endif
 
             {{-- 2. FORM FILTER (Glassmorphism Look) --}}
-            <div class="mb-10 bg-white/70 backdrop-blur-md p-6 rounded-[2.5rem] shadow-sm border border-white">
+            <div class="mb-10 bg-white/70 backdrop-blur-md p-6 rounded-[2rem] shadow-sm border border-white">
                 <form action="{{ route('admin.dojos.index') }}" method="GET"
                     class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="space-y-2">
@@ -107,7 +107,8 @@
                             Terapkan
                         </button>
                         <a href="{{ route('admin.dojos.index') }}"
-                            class="p-3 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-2xl transition-all">
+                            class="p-3 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-2xl transition-all"
+                            title="Reset Filter">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -117,12 +118,12 @@
                 </form>
             </div>
 
-            {{-- 3. VIEW DESKTOP (Modern Table with Dividers) --}}
+            {{-- 3. VIEW DESKTOP (Modern Table) --}}
             <div
-                class="hidden md:block bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] border border-slate-100 overflow-hidden">
-                <table class="min-w-full">
+                class="hidden md:block bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.02)] border border-slate-50 overflow-hidden">
+                <table class="min-w-full divide-y divide-slate-50">
                     <thead>
-                        <tr class="bg-slate-50/80 border-b border-slate-100">
+                        <tr class="bg-slate-50/50">
                             <th
                                 class="px-8 py-6 text-left text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em]">
                                 Info Dojo</th>
@@ -143,87 +144,82 @@
                                 Opsi</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white">
+                    <tbody class="divide-y divide-slate-50">
                         @forelse ($dojos as $dojo)
                             @php
                                 $expiryDate = \Carbon\Carbon::parse($dojo->sk_expiry_date);
+                                $isExpired = $expiryDate->isPast();
                             @endphp
-                            {{-- Border Bottom sebagai pembatas baris --}}
-                            <tr
-                                class="hover:bg-slate-50/50 transition-all duration-200 border-b border-slate-50 last:border-none group">
-                                <td class="px-8 py-6">
+                            <tr class="hover:bg-indigo-50/20 transition-all duration-200 group">
+                                <td class="px-8 py-5">
                                     <div
                                         class="font-bold text-slate-800 text-base group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
-                                        {{ $dojo->name }}
-                                    </div>
-                                    <div class="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tighter">
-                                        SK: {{ $dojo->sk_number ?? '—' }}</div>
+                                        {{ $dojo->name }}</div>
+                                    <div class="text-[10px] font-bold text-slate-400 mt-1 uppercase">SK:
+                                        {{ $dojo->sk_number ?? 'Batalyon -' }}</div>
                                 </td>
-                                <td class="px-8 py-6">
+                                <td class="px-8 py-5">
                                     <div class="font-semibold text-slate-700 text-sm">{{ $dojo->city->name ?? '-' }}
                                     </div>
-                                    <div class="text-[10px] text-slate-400 uppercase font-bold mt-0.5 tracking-tighter">
+                                    <div class="text-[10px] text-slate-400 uppercase font-medium">
                                         {{ $dojo->city->province->name ?? '-' }}</div>
                                 </td>
-                                <td class="px-8 py-6 text-sm font-black text-slate-600 uppercase italic">
-                                    {{ $dojo->sensei_name ?? '-' }}
-                                </td>
-                                <td class="px-8 py-6 text-center">
+                                <td class="px-8 py-5 text-sm font-semibold text-slate-600 uppercase">
+                                    {{ $dojo->sensei_name ?? '-' }}</td>
+                                <td class="px-6 py-4 text-center">
                                     <div
-                                        class="inline-flex flex-col items-center justify-center bg-slate-50/50 border border-slate-100 px-4 py-2 rounded-2xl min-w-[60px]">
+                                        class="inline-flex flex-col items-center justify-center bg-slate-50 border border-slate-100 px-4 py-2 rounded-2xl min-w-[60px]">
                                         <span
                                             class="text-sm font-black text-slate-800 leading-none">{{ number_format($dojo->members_count ?? 0) }}</span>
-                                        <span class="text-[8px] font-bold text-slate-400 uppercase mt-1">Orang</span>
+                                        <span
+                                            class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">Orang</span>
                                     </div>
                                 </td>
-                                <td class="px-8 py-6 text-center">
-                                    @include('admin.dojos._badge_status', ['official' => $dojo]) {{-- Mengirim $dojo sebagai $official agar kompatibel dengan partial --}}
-                                    <div class="text-[9px] text-slate-400 mt-2 font-bold uppercase tracking-tighter">
+                                <td class="px-8 py-5 text-center">
+                                    @include('admin.dojos._badge_status')
+                                    <div class="text-[9px] text-slate-400 mt-1.5 font-bold uppercase">
                                         {{ $expiryDate->format('M Y') }}</div>
                                 </td>
-                                <td class="px-8 py-6 text-right">
-                                    <div class="flex justify-end gap-2">
+                                <td class="px-8 py-5 text-right">
+                                    {{-- Hapus class opacity-0 dan group-hover:opacity-100 agar tombol selalu muncul --}}
+                                    <div class="flex justify-end gap-2 transition-all duration-200">
                                         @include('admin.dojos._action_buttons')
                                     </div>
                                 </td>
                             </tr>
                         @empty
-                            {{-- Kosong --}}
                         @endforelse
                     </tbody>
                 </table>
             </div>
 
-            {{-- 4. VIEW MOBILE (Modern Cards with Spacing) --}}
-            <div class="md:hidden space-y-6"> {{-- space-y-6 untuk jarak antar card --}}
+            {{-- 4. VIEW MOBILE (Modern Floating Cards) --}}
+            <div class="md:hidden space-y-4">
                 @foreach ($dojos as $dojo)
-                    <div
-                        class="bg-white rounded-[2rem] p-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-slate-100 relative overflow-hidden">
+                    <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
                         <div class="flex justify-between items-start mb-6">
-                            <h4 class="font-black text-lg text-slate-900 uppercase leading-none tracking-tight">
-                                {{ $dojo->name }}</h4>
+                            <h4 class="font-black text-lg text-slate-900 uppercase leading-none">{{ $dojo->name }}
+                            </h4>
                             <div
                                 class="bg-slate-900 text-white text-[10px] px-3 py-1 rounded-full font-black uppercase italic shadow-lg shadow-slate-200">
                                 {{ number_format($dojo->members_count ?? 0) }}
                             </div>
                         </div>
-
                         <div class="grid grid-cols-2 gap-4 mb-6">
-                            <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
                                 <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Coach</p>
-                                <p class="text-xs font-black text-slate-700 uppercase leading-tight">
+                                <p class="text-xs font-black text-slate-700 uppercase">
                                     {{ Str::limit($dojo->sensei_name, 12) }}</p>
                             </div>
-                            <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                            <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100/50">
                                 <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Wilayah
                                 </p>
-                                <p class="text-xs font-black text-slate-700 uppercase leading-tight">
+                                <p class="text-xs font-black text-slate-700 uppercase">
                                     {{ Str::limit($dojo->city->name, 12) }}</p>
                             </div>
                         </div>
-
-                        <div class="flex items-center justify-between pt-5 border-t border-slate-100">
-                            @include('admin.dojos._badge_status', ['official' => $dojo])
+                        <div class="flex items-center justify-between pt-4 border-t border-slate-50">
+                            @include('admin.dojos._badge_status')
                             <div class="flex gap-3">
                                 @include('admin.dojos._action_buttons')
                             </div>

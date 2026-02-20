@@ -54,6 +54,7 @@
                                 <option value="member" {{ request('role') == 'member' ? 'selected' : '' }}>Member
                                     (Anggota)</option>
                             </select>
+                            </select>
                         </div>
 
                         {{-- Filter Wilayah (Provinsi) --}}
