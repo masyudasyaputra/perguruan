@@ -13,7 +13,8 @@ use Illuminate\Support\Str;
 
 class MemberController extends Controller
 {
-    public function create()
+    
+public function create()
 {
     $user = auth()->user();
     $role = $user->role;
