@@ -127,11 +127,10 @@
                         </div>
 
                         @if ($role === 'admin_dojo' || $role === 'pb')
-                            <a href="#"
-                                class="inline-flex items-center px-6 py-3 bg-indigo-600 rounded-2xl font-black text-xs text-white uppercase tracking-[0.1em] hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all active:scale-95">
+                            <a href="{{ route('admin.members.create') }}"
+                            class="inline-flex items-center px-6 py-3 bg-indigo-600 rounded-2xl font-black text-xs text-white uppercase tracking-[0.1em] hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all active:scale-95">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
-                                        d="M12 4v16m8-8H4" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4" />
                                 </svg>
                                 Tambah Anggota
                             </a>
