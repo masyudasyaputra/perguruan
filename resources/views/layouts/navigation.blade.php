@@ -14,7 +14,7 @@
                 {{-- Desktop Menu --}}
                 <div class="hidden space-x-2 sm:-my-px sm:ms-10 sm:flex items-center">
 
-                    {{-- 1. Dashboard --}}
+                    {{-- 1. Dashboard (Akses: Semua) --}}
                     <x-nav-link :href="in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo'])
                         ? route('admin.dashboard')
                         : route('dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('dashboard')"
@@ -22,21 +22,20 @@
                         {{ __('Dashboard') }}
                     </x-nav-link>
 
-                    {{-- 2. Data Pengurus --}}
+                    {{-- 2. Data Pengurus & Manajemen Dojo (Hanya Struktural) --}}
                     @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab']))
                         <x-nav-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')"
                             class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.officials.*') ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50' : 'text-slate-500 hover:bg-slate-50' }}">
                             {{ __('Data Pengurus') }}
                         </x-nav-link>
 
-                        {{-- 3. Manajemen Dojo --}}
                         <x-nav-link :href="route('admin.dojos.index')" :active="request()->routeIs('admin.dojos.*')"
                             class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.dojos.*') ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50' : 'text-slate-500 hover:bg-slate-50' }}">
                             {{ __('Manajemen Dojo') }}
                         </x-nav-link>
                     @endif
 
-                    {{-- 4. Ujian Sabuk (Akses: Semua Admin) --}}
+                    {{-- 3. Ujian Sabuk (Akses: Semua Admin + Admin Dojo) --}}
                     @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo']))
                         <x-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')"
                             class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.exams.*') ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50' : 'text-slate-500 hover:bg-slate-50' }}">
@@ -47,13 +46,13 @@
                         </x-nav-link>
                     @endif
 
-                    {{-- 5. Dropdown Manajemen Sistem --}}
+                    {{-- 4. Dropdown Manajemen Sistem (Hanya PB & Pengprov) --}}
                     @if (in_array(Auth::user()->role, ['pb', 'pengprov']))
                         <div class="hidden sm:flex sm:items-center sm:ms-2">
                             <x-dropdown align="left" width="56">
                                 <x-slot name="trigger">
                                     <button
-                                        class="inline-flex items-center px-4 py-2 border-none text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.provinces.*') || request()->routeIs('admin.fees.*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-slate-50' }}">
+                                        class="inline-flex items-center px-4 py-2 border-none text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.provinces.*') || request()->routeIs('admin.fees.*') || request()->routeIs('admin.exams.fees.*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-slate-50' }}">
                                         <div>{{ __('Sistem') }}</div>
                                         <svg class="ms-1.5 h-4 w-4 transition-transform duration-200"
                                             :class="{ 'rotate-180': open }" fill="none" stroke="currentColor"
@@ -66,13 +65,17 @@
 
                                 <x-slot name="content">
                                     <div class="p-2 space-y-0.5">
-                                        <div
-                                            class="px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                        <div class="px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
                                             Pengaturan Utama</div>
 
                                         <x-dropdown-link :href="route('admin.users.index')"
                                             class="rounded-lg font-semibold hover:bg-slate-50">
                                             {{ __('Manajemen User') }}
+                                        </x-dropdown-link>
+
+                                        <x-dropdown-link :href="route('admin.exams.fees.index')"
+                                            class="rounded-lg font-semibold hover:bg-slate-50 {{ request()->routeIs('admin.exams.fees.*') ? 'text-indigo-600 bg-indigo-50' : '' }}">
+                                            {{ __('Master Biaya Ujian') }}
                                         </x-dropdown-link>
 
                                         <x-dropdown-link :href="route('admin.fees.index')"
@@ -94,20 +97,17 @@
                 </div>
             </div>
 
-            {{-- User Settings --}}
+            {{-- User Settings Dropdown --}}
             <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button
                             class="group flex items-center gap-3 px-3 py-1.5 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all duration-200 focus:outline-none">
                             <div class="flex flex-col text-right">
-                                <span
-                                    class="text-sm font-black text-slate-900 leading-none">{{ Auth::user()->name }}</span>
-                                <span
-                                    class="text-[9px] uppercase font-bold text-indigo-500 tracking-wider mt-1">{{ str_replace('_', ' ', Auth::user()->role) }}</span>
+                                <span class="text-sm font-black text-slate-900 leading-none">{{ Auth::user()->name }}</span>
+                                <span class="text-[9px] uppercase font-bold text-indigo-500 tracking-wider mt-1">{{ str_replace('_', ' ', Auth::user()->role) }}</span>
                             </div>
-                            <div
-                                class="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-200 group-hover:scale-105 transition-transform">
+                            <div class="h-9 w-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-sm shadow-md shadow-indigo-200 group-hover:scale-105 transition-transform">
                                 {{ substr(Auth::user()->name, 0, 1) }}
                             </div>
                         </button>
@@ -131,7 +131,7 @@
                 </x-dropdown>
             </div>
 
-            {{-- Hamburger --}}
+            {{-- Hamburger (Mobile) --}}
             <div class="-me-2 flex items-center sm:hidden">
                 <button @click="open = ! open"
                     class="inline-flex items-center justify-center p-2.5 rounded-xl text-slate-500 bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200">
@@ -151,12 +151,14 @@
         x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
         class="sm:hidden bg-white border-t border-slate-100 pb-6 shadow-xl">
         <div class="pt-4 pb-3 space-y-1 px-4">
+            {{-- Dashboard Mobile --}}
             <x-responsive-nav-link :href="in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo'])
                 ? route('admin.dashboard')
                 : route('dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('dashboard')" class="rounded-xl font-bold">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
 
+            {{-- Struktural Only Mobile --}}
             @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab']))
                 <x-responsive-nav-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')" class="rounded-xl font-bold">
                     {{ __('Data Pengurus') }}
@@ -166,7 +168,7 @@
                 </x-responsive-nav-link>
             @endif
 
-            {{-- Mobile: Ujian Sabuk --}}
+            {{-- Ujian Sabuk Mobile (Terbuka untuk Admin Dojo) --}}
             @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo']))
                 <x-responsive-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')" class="rounded-xl font-bold text-indigo-600">
                     {{ __('Ujian Sabuk') }}
@@ -175,11 +177,16 @@
 
             <div class="my-4 border-t border-slate-100 mx-2"></div>
 
+            {{-- Sistem Management (Hanya PB & Pengprov) --}}
             @if (in_array(Auth::user()->role, ['pb', 'pengprov']))
                 <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" class="rounded-xl font-bold">
                     {{ __('Manajemen User') }}
                 </x-responsive-nav-link>
                 
+                <x-responsive-nav-link :href="route('admin.exams.fees.index')" :active="request()->routeIs('admin.exams.fees.*')" class="rounded-xl font-bold">
+                    {{ __('Master Biaya Ujian') }}
+                </x-responsive-nav-link>
+
                 <x-responsive-nav-link :href="route('admin.fees.index')" :active="request()->routeIs('admin.fees.*')" class="rounded-xl font-bold">
                     {{ __('Konfigurasi Iuran') }}
                 </x-responsive-nav-link>

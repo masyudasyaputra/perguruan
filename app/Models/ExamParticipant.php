@@ -52,4 +52,8 @@ class ExamParticipant extends Model
     {
         return $this->belongsTo(BeltLevel::class, 'target_belt_id');
     }
+    public function fee()
+{
+    return $this->belongsTo(ExamFee::class, 'target_belt_id', 'belt_id');
+}
 }
