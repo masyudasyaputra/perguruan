@@ -36,13 +36,24 @@
                         </x-nav-link>
                     @endif
 
-                    {{-- 4. Dropdown Manajemen Sistem (User & Wilayah) --}}
+                    {{-- 4. Ujian Sabuk (Akses: Semua Admin) --}}
+                    @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo']))
+                        <x-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')"
+                            class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.exams.*') ? 'bg-indigo-50 text-indigo-700 shadow-sm shadow-indigo-100/50' : 'text-slate-500 hover:bg-slate-50' }}">
+                            <span class="flex items-center gap-2">
+                                <div class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('admin.exams.*') ? 'bg-indigo-600' : 'bg-slate-300' }}"></div>
+                                {{ __('Ujian Sabuk') }}
+                            </span>
+                        </x-nav-link>
+                    @endif
+
+                    {{-- 5. Dropdown Manajemen Sistem --}}
                     @if (in_array(Auth::user()->role, ['pb', 'pengprov']))
                         <div class="hidden sm:flex sm:items-center sm:ms-2">
                             <x-dropdown align="left" width="56">
                                 <x-slot name="trigger">
                                     <button
-                                        class="inline-flex items-center px-4 py-2 border-none text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.provinces.*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-slate-50' }}">
+                                        class="inline-flex items-center px-4 py-2 border-none text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.provinces.*') || request()->routeIs('admin.fees.*') ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-500 hover:bg-slate-50' }}">
                                         <div>{{ __('Sistem') }}</div>
                                         <svg class="ms-1.5 h-4 w-4 transition-transform duration-200"
                                             :class="{ 'rotate-180': open }" fill="none" stroke="currentColor"
@@ -62,6 +73,11 @@
                                         <x-dropdown-link :href="route('admin.users.index')"
                                             class="rounded-lg font-semibold hover:bg-slate-50">
                                             {{ __('Manajemen User') }}
+                                        </x-dropdown-link>
+
+                                        <x-dropdown-link :href="route('admin.fees.index')"
+                                            class="rounded-lg font-semibold hover:bg-slate-50 {{ request()->routeIs('admin.fees.*') ? 'text-indigo-600 bg-indigo-50' : '' }}">
+                                            {{ __('Konfigurasi Iuran') }}
                                         </x-dropdown-link>
 
                                         @if (Auth::user()->role === 'pb')
@@ -150,12 +166,24 @@
                 </x-responsive-nav-link>
             @endif
 
+            {{-- Mobile: Ujian Sabuk --}}
+            @if (in_array(Auth::user()->role, ['pb', 'pengprov', 'pengcab', 'admin_dojo']))
+                <x-responsive-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')" class="rounded-xl font-bold text-indigo-600">
+                    {{ __('Ujian Sabuk') }}
+                </x-responsive-nav-link>
+            @endif
+
             <div class="my-4 border-t border-slate-100 mx-2"></div>
 
             @if (in_array(Auth::user()->role, ['pb', 'pengprov']))
                 <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" class="rounded-xl font-bold">
                     {{ __('Manajemen User') }}
                 </x-responsive-nav-link>
+                
+                <x-responsive-nav-link :href="route('admin.fees.index')" :active="request()->routeIs('admin.fees.*')" class="rounded-xl font-bold">
+                    {{ __('Konfigurasi Iuran') }}
+                </x-responsive-nav-link>
+
                 @if (Auth::user()->role === 'pb')
                     <x-responsive-nav-link :href="route('admin.provinces.index')" :active="request()->routeIs('admin.provinces.*')" class="rounded-xl font-bold">
                         {{ __('Data Wilayah') }}
