@@ -55,7 +55,15 @@
                                 <td class="px-8 py-6">
                                     <div class="flex justify-end items-center gap-2">
                                         
-                                        {{-- TOMBOL ASSIGN PENGUJI (BARU) --}}
+                                        {{-- TOMBOL INPUT NILAI (UNTUK PENGUJI / ADMIN) --}}
+                                        @if (auth()->user()->hasRole(['pb', 'pengprov', 'pengcab', 'penguji']))
+                                            <a href="{{ route('admin.exams.scoring', $exam->id) }}" title="Input Nilai Ujian"
+                                                class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md">
+                                                Input Nilai
+                                            </a>
+                                        @endif
+
+                                        {{-- TOMBOL ASSIGN PENGUJI --}}
                                         @if (auth()->user()->hasRole(['pb', 'pengprov']))
                                             <a href="{{ route('admin.exams.examiners.edit', $exam->id) }}" title="Atur Penguji"
                                                 class="p-2 bg-amber-50 text-amber-600 rounded-xl hover:bg-amber-500 hover:text-white transition-all">
@@ -65,7 +73,7 @@
                                             </a>
                                         @endif
 
-                                        <a href="{{ route('admin.exams.show', $exam->id) }}"
+                                        <a href="{{ route('admin.exams.show', $exam->id) }}" title="Lihat Detail"
                                             class="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
@@ -112,6 +120,16 @@
                         </div>
                         <h3 class="font-black text-slate-800 uppercase mb-4">{{ $exam->name }}</h3>
                         
+                        {{-- TOMBOL INPUT NILAI MOBILE (UTAMA UNTUK PENGUJI) --}}
+                        @if (auth()->user()->hasRole(['pb', 'pengprov', 'pengcab', 'penguji']))
+                            <div class="mb-3">
+                                <a href="{{ route('admin.exams.scoring', $exam->id) }}" 
+                                    class="flex items-center justify-center gap-2 w-full py-3 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100">
+                                    Mulai Penilaian
+                                </a>
+                            </div>
+                        @endif
+
                         {{-- TOMBOL PENGUJI MOBILE --}}
                         @if (auth()->user()->hasRole(['pb', 'pengprov']))
                             <div class="mb-4">
