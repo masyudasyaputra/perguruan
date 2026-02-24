@@ -10,34 +10,29 @@ use Illuminate\Http\Request;
 class ExamExaminerController extends Controller
 {
     public function edit(Exam $exam)
-    {
-        // list penguji (boleh yang dojo_id null atau ada dojo_id)
-        $examiners = User::query()
-            ->where('role', 'penguji')
-            ->orderBy('name')
-            ->get(['id', 'name', 'dojo_id']);
+{
+    // Mengambil user yang punya role 'penguji' baik di kolom utama atau array JSON
+    $examiners = User::where('role', 'penguji')
+        ->orWhereJsonContains('roles', 'penguji')
+        ->orderBy('name')
+        ->get();
 
-        $selected = $exam->examiners()->pluck('users.id')->toArray();
+    // ID penguji yang sudah terpilih untuk ujian ini (dari tabel pivot)
+    $selected = $exam->examiners()->pluck('users.id')->toArray();
 
-        return view('admin.exams.examiners', compact('exam', 'examiners', 'selected'));
-    }
+    return view('admin.exams.examiners', compact('exam', 'examiners', 'selected'));
+}
 
-    public function update(Request $request, Exam $exam)
-    {
-        $data = $request->validate([
-            'examiner_ids' => ['array'],
-            'examiner_ids.*' => ['integer', 'exists:users,id'],
-        ]);
+public function update(Request $request, Exam $exam)
+{
+    $request->validate([
+        'examiner_ids' => 'nullable|array',
+        'examiner_ids.*' => 'exists:users,id'
+    ]);
 
-        $ids = $data['examiner_ids'] ?? [];
+    // Sinkronisasi tabel pivot (exam_user)
+    $exam->examiners()->sync($request->examiner_ids ?? []);
 
-        // (Opsional tapi aman) pastikan yang di-sync memang role penguji
-        $ids = User::whereIn('id', $ids)->where('role', 'penguji')->pluck('id')->toArray();
-
-        $exam->examiners()->sync($ids);
-
-        return redirect()
-            ->route('admin.exams.show', $exam)
-            ->with('success', 'Penguji berhasil di-assign ke ujian.');
-    }
+    return redirect()->back()->with('success', 'Tim penguji berhasil diperbarui!');
+}
 }
