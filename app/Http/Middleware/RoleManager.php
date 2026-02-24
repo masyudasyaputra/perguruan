@@ -27,7 +27,7 @@ class RoleManager
         }
 
         // Jika tidak diizinkan, arahkan ke dashboard yang sesuai (bukan ke route asal)
-        if (in_array($userRole, ['pb', 'pengprov', 'pengcab', 'admin_dojo'])) {
+        if (in_array($userRole, ['pb', 'pengprov', 'pengcab', 'admin_dojo', 'penguji'])) {
             return redirect()->route('admin.dashboard');
         }
 

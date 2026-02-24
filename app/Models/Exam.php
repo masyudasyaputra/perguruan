@@ -67,4 +67,10 @@ class Exam extends Model
     {
         return $this->participants()->where('result', 'pass')->count();
     }
+
+    public function examiners()
+    {
+        return $this->belongsToMany(\App\Models\User::class, 'exam_examiners', 'exam_id', 'user_id')
+            ->withTimestamps();
+    }
 }

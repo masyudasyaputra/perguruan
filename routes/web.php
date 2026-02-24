@@ -8,7 +8,7 @@ use App\Http\Controllers\Admin\OfficialController;
 use App\Http\Controllers\Admin\ProvinceController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\FeeConfigurationController;
-use App\Http\Controllers\Admin\ExamController; 
+use App\Http\Controllers\Admin\ExamController;
 use App\Http\Controllers\Member\MemberDashboardController;
 use Illuminate\Support\Facades\Route;
 use App\Models\City;
@@ -43,15 +43,31 @@ Route::middleware(['auth', 'role:member'])->group(function () {
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
 
     // 1. AKSES SEMUA LEVEL ADMIN (Termasuk Admin Dojo)
-    Route::middleware(['role:pb,pengprov,pengcab,admin_dojo'])->group(function () {
+    Route::middleware(['role:pb,pengprov,pengcab,admin_dojo, penguji'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        // Manajemen Member
         Route::post('/members/review', [MemberController::class, 'review'])->name('members.review');
         Route::resource('members', MemberController::class);
 
-        // --- MANAJEMEN PESERTA UJIAN (GABUNGAN) ---
+        // Manajemen Ujian (Sisi Peserta & View)
+        Route::get('/exams', [ExamController::class, 'index'])->name('exams.index');
         Route::get('/exams/{exam}', [ExamController::class, 'show'])->name('exams.show');
         Route::post('/exams/{exam}/add-member', [ExamController::class, 'registerMember'])->name('exams.register-member');
+
+        // Fitur Pembayaran Massal (Sesuai error di Blade sebelumnya)
+        Route::post('/exams/{exam}/bulk-payment', [ExamController::class, 'bulkPayment'])->name('exams.bulk-payment');
+
+        // Fitur Penghapusan Peserta (Single & Bulk)
         Route::delete('/exams/participants/{participant}', [ExamController::class, 'removeMember'])->name('exams.remove-member');
+        Route::delete('/exams/{exam}/bulk-remove', [ExamController::class, 'bulkRemoveMember'])->name('exams.bulk-remove-member');
+
+        Route::get('/exams/{exam}/examiners', [\App\Http\Controllers\Admin\ExamExaminerController::class, 'edit'])
+            ->name('exams.examiners.edit');
+
+        Route::put('/exams/{exam}/examiners', [\App\Http\Controllers\Admin\ExamExaminerController::class, 'update'])
+            ->name('exams.examiners.update');
+
     });
 
     // 2. AKSES STRUKTURAL (PB, Pengprov, Pengcab)
@@ -59,16 +75,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::resource('dojos', DojoController::class);
         Route::resource('officials', OfficialController::class);
 
-        // --- MANAJEMEN SESI UJIAN ---
-        Route::resource('exams', ExamController::class)->except(['show']); 
+        // Manajemen Sesi Jadwal Ujian (Resource: store, edit, update, destroy)
+        Route::resource('exams', ExamController::class)->except(['index', 'show']);
         Route::patch('/exams/{exam}/update-result', [ExamController::class, 'updateResult'])->name('exams.update-result');
     });
 
-    // 3. AKSES PB & PENGPROV (Akses Data Master & Biaya)
+    // 3. AKSES TINGGI (PB & Pengprov)
     Route::middleware(['role:pb,pengprov'])->group(function () {
         Route::resource('users', UserController::class);
         Route::resource('provinces', ProvinceController::class);
-        
+
+        // Konfigurasi Master Biaya Ujian
         Route::prefix('exams-fees')->name('exams.fees.')->group(function () {
             Route::get('/', [ExamController::class, 'feeIndex'])->name('index');
             Route::post('/', [ExamController::class, 'feeStore'])->name('store');

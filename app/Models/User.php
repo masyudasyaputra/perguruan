@@ -33,6 +33,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'roles' => 'array',
         ];
     }
 
@@ -86,7 +87,13 @@ class User extends Authenticatable
         // Cek apakah ada pembayaran SUCCESS untuk belt_level_id yang sedang disandang user
         return $this->payments()
             ->where('belt_level_id', $this->belt_level_id)
-            ->where('status', 'SUCCESS') 
+            ->where('status', 'SUCCESS')
             ->exists();
+    }
+
+    public function assignedExamsAsExaminer()
+    {
+        return $this->belongsToMany(\App\Models\Exam::class, 'exam_examiners', 'user_id', 'exam_id')
+            ->withTimestamps();
     }
 }

@@ -3,11 +3,13 @@
         <div class="flex justify-between items-center px-2">
             <div>
                 <h2 class="font-black text-2xl text-slate-800 tracking-tight uppercase">Jadwal Ujian Sabuk</h2>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Manajemen sesi ujian dan pendaftaran peserta</p>
+                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Manajemen sesi ujian dan
+                    pendaftaran peserta</p>
             </div>
-            {{-- Tombol Jadwal Baru: Hanya untuk PB, Pengprov, dan Pengcab --}}
-            @if(auth()->user()->hasRole(['pb', 'pengprov', 'pengcab']))
-                <button onclick="document.getElementById('modalAddExam').classList.remove('hidden')" class="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-slate-200">
+            {{-- HANYA ADMIN PB DAN PENGPROV YANG BISA TAMBAH JADWAL --}}
+            @if (auth()->user()->hasRole(['pb', 'pengprov']))
+                <button onclick="toggleModal('modalAddExam')"
+                    class="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg shadow-slate-200">
                     + Jadwal Baru
                 </button>
             @endif
@@ -16,76 +18,217 @@
 
     <div class="py-12 bg-slate-50/50 min-h-screen">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            
-            @if(session('success'))
-                <div class="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-[2rem] font-bold text-sm flex items-center gap-4 shadow-sm animate-fade-in">
-                    <div class="p-2 bg-emerald-500 text-white rounded-full">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-                    </div>
+
+            {{-- ALERT NOTIFIKASI --}}
+            @if (session('success'))
+                <div
+                    class="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-[2rem] font-bold text-sm flex items-center gap-4 alert-notif">
                     <span>{{ session('success') }}</span>
                 </div>
             @endif
 
-            @if(session('error') || $errors->any())
-                <div class="mb-6 p-4 bg-rose-50 border border-rose-100 text-rose-700 rounded-[2rem] font-bold text-sm shadow-sm animate-fade-in">
-                    <div class="flex items-center gap-4">
-                        <div class="p-2 bg-rose-500 text-white rounded-full">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
-                        </div>
-                        <span>{{ session('error') ?? 'Terdapat kesalahan pada input Anda.' }}</span>
-                    </div>
-                    @if($errors->any())
-                        <ul class="mt-2 ml-12 list-disc list-inside text-xs opacity-80">
-                            @foreach($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    @endif
-                </div>
-            @endif
+            {{-- TAMPILAN DESKTOP (TABLE) --}}
+            <div class="hidden lg:block bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr
+                            class="bg-slate-50/50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <th class="px-8 py-5">Status</th>
+                            <th class="px-6 py-5">Nama Sesi</th>
+                            <th class="px-6 py-5">Tanggal</th>
+                            <th class="px-6 py-5">Lokasi</th>
+                            <th class="px-6 py-5 text-center">Peserta</th>
+                            <th class="px-8 py-5 text-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-50">
+                        @forelse($exams as $exam)
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-8 py-6">
+                                    <span
+                                        class="px-3 py-1 {{ $exam->status === 'open' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400' }} rounded-full text-[9px] font-black uppercase">
+                                        {{ $exam->status }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-6 font-black text-slate-800 uppercase text-sm">{{ $exam->name }}
+                                </td>
+                                <td class="px-6 py-6 text-xs font-bold text-slate-500">
+                                    {{ is_string($exam->execution_date) ? \Carbon\Carbon::parse($exam->execution_date)->format('d M Y') : $exam->execution_date->format('d M Y') }}
+                                </td>
+                                <td class="px-6 py-6 text-[10px] font-bold text-slate-400 uppercase">
+                                    {{ $exam->location }}</td>
+                                <td class="px-6 py-6 text-center font-black text-slate-700">
+                                    {{ $exam->participants->count() }}</td>
+                                <td class="px-8 py-6">
+                                    <div class="flex justify-end items-center gap-2">
+                                        {{-- SEMUA ROLE BISA LIHAT DETAIL --}}
+                                        <a href="{{ route('admin.exams.show', $exam->id) }}"
+                                            class="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                            </svg>
+                                        </a>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                @forelse($exams as $exam)
-                <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group">
-                    <div class="p-8">
-                        <div class="flex justify-between items-start mb-6">
-                            <span class="px-4 py-1.5 {{ $exam->status === 'open' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400' }} rounded-full text-[10px] font-black uppercase tracking-widest">
-                                {{ $exam->status }}
+                                        {{-- PEMBATASAN EDIT & HAPUS HANYA UNTUK PB & PENGPROV --}}
+                                        @if (auth()->user()->hasRole(['pb', 'pengprov']))
+                                            <button onclick="openEditModal({{ json_encode($exam) }})"
+                                                class="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                </svg>
+                                            </button>
+                                            <form action="{{ route('admin.exams.destroy', $exam->id) }}" method="POST"
+                                                onsubmit="return confirm('Hapus jadwal ini?')">
+                                                @csrf @method('DELETE')
+                                                <button type="submit"
+                                                    class="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-600 hover:text-white transition-all">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6"
+                                    class="py-20 text-center font-bold text-slate-400 uppercase tracking-widest text-xs">
+                                    Belum ada data</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- TAMPILAN MOBILE (CARD) --}}
+            <div class="lg:hidden grid gap-6">
+                @foreach ($exams as $exam)
+                    <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <div class="flex justify-between mb-4">
+                            <span
+                                class="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase">{{ $exam->status }}</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">
+                                {{ is_string($exam->execution_date) ? \Carbon\Carbon::parse($exam->execution_date)->format('d M Y') : $exam->execution_date->format('d M Y') }}
                             </span>
-                            <div class="text-right">
-                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tanggal Ujian</p>
-                                <p class="text-xs font-bold text-slate-600">{{ is_string($exam->execution_date) ? \Carbon\Carbon::parse($exam->execution_date)->format('d M Y') : $exam->execution_date->format('d M Y') }}</p>
+                        </div>
+                        <h3 class="font-black text-slate-800 uppercase mb-4">{{ $exam->name }}</h3>
+                        <div class="flex justify-between items-center bg-slate-50 p-4 rounded-2xl">
+                            <span
+                                class="text-[10px] font-black text-slate-400 uppercase">{{ $exam->participants->count() }}
+                                Peserta</span>
+                            <div class="flex gap-2">
+                                {{-- PEMBATASAN EDIT MOBILE --}}
+                                @if (auth()->user()->hasRole(['pb', 'pengprov']))
+                                    <button onclick="openEditModal({{ json_encode($exam) }})"
+                                        class="p-2 bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-black px-4 uppercase">Edit</button>
+                                @endif
+                                <a href="{{ route('admin.exams.show', $exam->id) }}"
+                                    class="p-2 bg-slate-900 text-white rounded-lg px-4 text-[10px] font-black uppercase">KELOLA</a>
                             </div>
                         </div>
-
-                        <h3 class="text-xl font-black text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors leading-tight uppercase">{{ $exam->name }}</h3>
-                        
-                        <div class="flex items-center gap-2 text-slate-400 mb-8">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /></svg>
-                            <span class="text-[10px] font-bold uppercase tracking-wide">{{ $exam->location }}</span>
-                        </div>
-                        
-                        <div class="flex items-center justify-between p-5 bg-slate-50 rounded-[2rem] border border-slate-100/50">
-                            <div>
-                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Peserta</p>
-                                <p class="text-lg font-black text-slate-800">{{ $exam->participants->count() }} <span class="text-[10px] text-slate-400">JIWA</span></p>
-                            </div>
-                            <a href="{{ route('admin.exams.show', $exam->id) }}" class="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 shadow-sm rounded-2xl text-[10px] font-black uppercase text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all duration-300">
-                                KELOLA
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                            </a>
-                        </div>
                     </div>
-                </div>
-                @empty
-                <div class="col-span-full py-20 bg-white rounded-[3rem] border border-dashed border-slate-200 text-center">
-                    <div class="p-4 bg-slate-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    </div>
-                    <p class="text-sm font-black text-slate-400 uppercase tracking-[0.2em]">Belum Ada Jadwal Ujian Tersedia</p>
-                </div>
-                @endforelse
+                @endforeach
             </div>
         </div>
     </div>
+
+    {{-- MODAL TAMBAH (HANYA BISA DIAKSES ADMIN PB/PROV DARI TOMBOL DI ATAS) --}}
+    <div id="modalAddExam"
+        class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-lg p-10 shadow-2xl border border-slate-100">
+            <form action="{{ route('admin.exams.store') }}" method="POST">
+                @csrf
+                <h3 class="text-2xl font-black text-slate-800 uppercase mb-6">Jadwal Baru</h3>
+                <div class="space-y-4">
+                    <input type="text" name="name" placeholder="Nama Sesi" required
+                        class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="date" name="execution_date" required
+                            class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                        <select name="status"
+                            class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                            <option value="open">Open</option>
+                            <option value="draft">Draft</option>
+                        </select>
+                    </div>
+                    <input type="text" name="location" placeholder="Lokasi" required
+                        class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                </div>
+                <div class="mt-8 flex gap-3">
+                    <button type="button" onclick="toggleModal('modalAddExam')"
+                        class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase">Batal</button>
+                    <button type="submit"
+                        class="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- MODAL EDIT --}}
+    <div id="modalEditExam"
+        class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white rounded-[2.5rem] w-full max-w-lg p-10 shadow-2xl border border-slate-100">
+            <form id="editForm" method="POST">
+                @csrf @method('PUT')
+                <h3 class="text-2xl font-black text-slate-800 uppercase mb-6">Edit Jadwal</h3>
+                <div class="space-y-4">
+                    <input type="text" name="name" id="edit_name" required
+                        class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                    <div class="grid grid-cols-2 gap-4">
+                        <input type="date" name="execution_date" id="edit_date" required
+                            class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                        <select name="status" id="edit_status"
+                            class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                            <option value="open">Open</option>
+                            <option value="draft">Draft</option>
+                        </select>
+                    </div>
+                    <input type="text" name="location" id="edit_location" required
+                        class="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 text-sm font-bold">
+                </div>
+                <div class="mt-8 flex gap-3">
+                    <button type="button" onclick="toggleModal('modalEditExam')"
+                        class="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-[10px] uppercase">Batal</button>
+                    <button type="submit"
+                        class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black text-[10px] uppercase shadow-lg">Update
+                        Jadwal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        function openEditModal(exam) {
+            document.getElementById('editForm').action = `/admin/exams/${exam.id}`;
+            document.getElementById('edit_name').value = exam.name;
+            document.getElementById('edit_location').value = exam.location;
+            document.getElementById('edit_status').value = exam.status;
+
+            const date = new Date(exam.execution_date);
+            const formattedDate = date.toISOString().split('T')[0];
+            document.getElementById('edit_date').value = formattedDate;
+
+            toggleModal('modalEditExam');
+        }
+
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert-notif');
+            alerts.forEach(a => a.remove());
+        }, 4000);
+    </script>
 </x-app-layout>

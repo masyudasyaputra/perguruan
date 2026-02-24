@@ -9,20 +9,27 @@ use App\Models\Dojo;
 use App\Models\City;
 use App\Models\BeltLevel;
 use App\Models\ExamParticipant;
-use App\Models\ExamFee; 
+use App\Models\ExamFee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\View\View;
+use Illuminate\Support\Facades\DB;
 
 class ExamController extends Controller
 {
-    public function index()
+    /**
+     * Menampilkan daftar semua jadwal ujian.
+     */
+    public function index(): View
     {
         $user = Auth::user();
         $query = Exam::with(['province', 'participants']);
 
         if ($user->role === 'pengprov') {
-            $query->where(function($q) use ($user) {
-                $q->where('province_id', $user->province_id)->orWhereNull('province_id');
+            $query->where(function ($q) use ($user) {
+                $q->where('province_id', $user->province_id)
+                    ->orWhereNull('province_id');
             });
         }
 
@@ -30,28 +37,100 @@ class ExamController extends Controller
         return view('admin.exams.index', compact('exams'));
     }
 
-    public function show(Request $request, Exam $exam)
+    /**
+     * MENYIMPAN JADWAL UJIAN BARU
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'execution_date' => 'required|date',
+            'location' => 'required|string|max:255',
+            'status' => 'required|in:open,draft',
+        ]);
+
+        try {
+            if (Auth::user()->role === 'pengprov') {
+                $validated['province_id'] = Auth::user()->province_id;
+            }
+
+            Exam::create($validated);
+
+            return redirect()->route('admin.exams.index')
+                ->with('success', 'Jadwal ujian baru berhasil diterbitkan!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal membuat jadwal: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * UPDATE JADWAL UJIAN
+     */
+    public function update(Request $request, Exam $exam): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'execution_date' => 'required|date',
+            'location' => 'required|string|max:255',
+            'status' => 'required|in:open,draft',
+        ]);
+
+        try {
+            $exam->update($validated);
+            return back()->with('success', 'Jadwal ujian berhasil diperbarui!');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal memperbarui jadwal: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * HAPUS JADWAL UJIAN
+     */
+    public function destroy(Exam $exam): RedirectResponse
+    {
+        try {
+            if ($exam->participants()->count() > 0) {
+                return back()->with('error', 'Jadwal tidak bisa dihapus karena sudah memiliki peserta terdaftar.');
+            }
+
+            $exam->delete();
+            return back()->with('success', 'Jadwal ujian berhasil dihapus.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal menghapus data: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Menampilkan detail satu ujian dan daftar pesertanya.
+     */
+    public function show(Request $request, Exam $exam): View
     {
         $user = Auth::user();
-        
-        $exam->load(['participants' => function($query) use ($request) {
-            if ($request->filled('search')) {
-                $query->whereHas('user', fn($q) => $q->where('name', 'like', '%' . $request->search . '%'));
-            }
 
-            if ($request->filled('dojo_id')) {
-                $query->where('dojo_id', $request->dojo_id);
-            }
+        $exam->load([
+            'participants' => function ($query) use ($request) {
+                if ($request->filled('search')) {
+                    $query->whereHas('user', fn($q) => $q->where('name', 'like', '%' . $request->search . '%'));
+                }
 
-            if ($request->filled('payment_status')) {
-                $query->where('payment_status', $request->payment_status);
-            }
-        }, 'participants.user', 'participants.dojo', 'participants.currentBelt', 'participants.targetBelt']);
+                if ($request->filled('dojo_id')) {
+                    $query->where('dojo_id', $request->dojo_id);
+                }
+
+                if ($request->filled('payment_status')) {
+                    $query->where('payment_status', $request->payment_status);
+                }
+            },
+            'participants.user',
+            'participants.dojo',
+            'participants.currentBelt',
+            'participants.targetBelt'
+        ]);
 
         $dojos = Dojo::orderBy('name')->get();
         $cities = City::orderBy('name')->get();
         $belts = BeltLevel::orderBy('order')->get();
-        
+
         $memberQuery = User::where('role', 'member');
         if ($user->role === 'admin_dojo') {
             $memberQuery->where('dojo_id', $user->dojo_id);
@@ -64,74 +143,192 @@ class ExamController extends Controller
     }
 
     /**
-     * DAFTARKAN MEMBER & TARIK BIAYA DARI EXAM_FEES
+     * DAFTARKAN BANYAK MEMBER KE UJIAN
      */
-    public function registerMember(Request $request, $examId)
+    public function registerMember(Request $request, $examId): RedirectResponse
     {
-        $exam = Exam::findOrFail($examId);
-        $user = User::findOrFail($request->user_id);
-        
-        // 1. Cek apakah user sudah terdaftar di ujian ini
-        $exists = ExamParticipant::where('exam_id', $examId)
-                                 ->where('user_id', $user->id)
-                                 ->exists();
-        if ($exists) {
-            return back()->with('error', 'Member ini sudah terdaftar dalam sesi ujian ini.');
-        }
-
-        // 2. Tentukan target sabuk (naik 1 level dari level saat ini)
-        $targetBeltId = $user->belt_level_id + 1; 
-
-        // 3. AMBIL BIAYA BERDASARKAN belt_level_id (SESUAI DATABASE ANDA)
-        $fee = ExamFee::where('belt_level_id', $targetBeltId)->first();
-
-        // 4. Eksekusi simpan
-        $exam->participants()->create([
-            'user_id'         => $user->id,
-            'dojo_id'         => $user->dojo_id,
-            'current_belt_id' => $user->belt_level_id,
-            'target_belt_id'  => $targetBeltId,
-            'fee_amount'      => $fee ? $fee->amount : 0, 
-            'payment_status'  => 'unpaid'
+        $request->validate([
+            'user_ids' => 'required|array',
+            'user_ids.*' => 'exists:users,id'
         ]);
 
-        return back()->with('success', 'Peserta berhasil didaftarkan dengan biaya ujian yang sesuai.');
+        $exam = Exam::findOrFail($examId);
+        $auth = Auth::user();
+        $countSuccess = 0;
+        $countSkipped = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($request->user_ids as $userId) {
+                $user = User::findOrFail($userId);
+
+                if ($auth->role === 'admin_dojo' && $user->dojo_id !== $auth->dojo_id) {
+                    continue;
+                }
+
+                $exists = ExamParticipant::where('exam_id', $examId)
+                    ->where('user_id', $user->id)
+                    ->exists();
+
+                if ($exists) {
+                    $countSkipped++;
+                    continue;
+                }
+
+                $currentBeltId = $user->belt_level_id ?? 1;
+                $targetBeltId = $currentBeltId + 1;
+                $fee = ExamFee::where('belt_level_id', $targetBeltId)->first();
+
+                ExamParticipant::create([
+                    'exam_id' => $exam->id,
+                    'user_id' => $user->id,
+                    'dojo_id' => $user->dojo_id,
+                    'current_belt_id' => $currentBeltId,
+                    'target_belt_id' => $targetBeltId,
+                    'fee_amount' => $fee ? $fee->amount : 0,
+                    'payment_status' => 'unpaid'
+                ]);
+
+                $countSuccess++;
+            }
+
+            DB::commit();
+
+            $message = "Berhasil mendaftarkan $countSuccess peserta.";
+            if ($countSkipped > 0) {
+                $message .= " ($countSkipped anggota dilewati karena sudah terdaftar).";
+            }
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Gagal mendaftarkan peserta: ' . $e->getMessage());
+        }
     }
 
-    public function removeMember(ExamParticipant $participant)
+    /**
+     * PEMBAYARAN MASSAL (BULK PAYMENT)
+     * Menyesuaikan request dari Blade untuk update status payment peserta
+     */
+    public function bulkPayment(Request $request, $examId): RedirectResponse
     {
+        $request->validate([
+            'participant_ids' => 'required|array',
+            'participant_ids.*' => 'exists:exam_participants,id'
+        ]);
+
+        $auth = Auth::user();
+
+        try {
+            $query = ExamParticipant::where('exam_id', $examId)
+                ->whereIn('id', $request->participant_ids);
+
+            // Security check: Admin dojo hanya bisa update pembayaran anggota dojonya sendiri
+            if ($auth->role === 'admin_dojo') {
+                $query->where('dojo_id', $auth->dojo_id);
+            }
+
+            $count = $query->update([
+                'payment_status' => 'paid',
+                'updated_at' => now()
+            ]);
+
+            return back()->with('success', "$count peserta berhasil diverifikasi pembayarannya.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal memproses pembayaran: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * UPDATE HASIL UJIAN (UPDATE RESULT)
+     */
+    public function updateResult(Request $request, Exam $exam): RedirectResponse
+    {
+        $request->validate([
+            'participant_id' => 'required|exists:exam_participants,id',
+            'status_result' => 'required|in:pass,fail,pending',
+        ]);
+
+        try {
+            $participant = ExamParticipant::findOrFail($request->participant_id);
+            $participant->update(['status_result' => $request->status_result]);
+
+            return back()->with('success', 'Hasil ujian berhasil diperbarui.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal memperbarui hasil: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * HAPUS PESERTA DARI DAFTAR UJIAN (SINGLE)
+     */
+    public function removeMember(ExamParticipant $participant): RedirectResponse
+    {
+        $auth = Auth::user();
+
+        if ($auth->role === 'admin_dojo' && $participant->dojo_id !== $auth->dojo_id) {
+            abort(403, 'Akses ditolak.');
+        }
+
         $participant->delete();
-        return back()->with('success', 'Peserta berhasil dihapus.');
+        return back()->with('success', 'Peserta berhasil dihapus dari daftar.');
+    }
+
+    /**
+     * HAPUS BANYAK PESERTA SEKALIGUS (BULK DELETE)
+     */
+    public function bulkRemoveMember(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'participant_ids' => 'required|array',
+            'participant_ids.*' => 'exists:exam_participants,id'
+        ]);
+
+        $auth = Auth::user();
+
+        try {
+            $query = ExamParticipant::whereIn('id', $request->participant_ids);
+
+            if ($auth->role === 'admin_dojo') {
+                $query->where('dojo_id', $auth->dojo_id);
+            }
+
+            $deletedCount = $query->delete();
+
+            return back()->with('success', "$deletedCount peserta berhasil dihapus secara massal.");
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal menghapus peserta: ' . $e->getMessage());
+        }
     }
 
     // --- MANAJEMEN MASTER BIAYA UJIAN ---
 
-    public function feeIndex()
+    public function feeIndex(): View
     {
         $belts = BeltLevel::orderBy('order')->get();
         $fees = ExamFee::with('beltLevel')->get();
         return view('admin.exams.fees', compact('belts', 'fees'));
     }
 
-    public function feeStore(Request $request)
+    public function feeStore(Request $request): RedirectResponse
     {
         $request->validate([
-            'belt_level_id' => 'required|exists:belt_levels,id', // Diubah dari belt_id
-            'amount'        => 'required|numeric|min:0',
+            'belt_level_id' => 'required|exists:belt_levels,id',
+            'amount' => 'required|numeric|min:0',
         ]);
 
-        // Gunakan belt_level_id sesuai kolom di tabel MySQL Anda
         ExamFee::updateOrCreate(
             ['belt_level_id' => $request->belt_level_id],
-            ['amount'        => $request->amount]
+            ['amount' => $request->amount]
         );
 
-        return redirect()->back()->with('success', 'Master biaya ujian diperbarui!');
+        return back()->with('success', 'Master biaya ujian diperbarui!');
     }
 
-    public function feeDestroy($id)
+    public function feeDestroy($id): RedirectResponse
     {
         ExamFee::findOrFail($id)->delete();
-        return redirect()->back()->with('success', 'Konfigurasi biaya dihapus.');
+        return back()->with('success', 'Konfigurasi biaya dihapus.');
     }
 }
