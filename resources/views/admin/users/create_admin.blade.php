@@ -28,16 +28,57 @@
                     @csrf
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Pilih Role Admin</label>
-                            <select name="role" required
-                                class="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500">
+                        {{-- Ganti bagian Select Role dengan kode di bawah ini --}}
+                        <div class="md:col-span-2" x-data="{ selectedRoles: @js(old('roles', [])) }">
+                            <label class="block text-sm font-bold text-gray-700 mb-3 uppercase tracking-wider">
+                                Pilih Role Admin (Bisa Pilih Lebih Dari 1)
+                            </label>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                 @foreach ($availableRoles as $key => $label)
-                                    <option value="{{ $key }}" {{ old('role') == $key ? 'selected' : '' }}>
-                                        {{ $label }}
-                                    </option>
+                                    <label
+                                        class="relative flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 group"
+                                        :class="selectedRoles.includes('{{ $key }}') ? 'border-red-600 bg-red-50' :
+                                            'border-gray-100 bg-white hover:border-gray-300'">
+                                        {{-- Hidden Checkbox --}}
+                                        <input type="checkbox" name="roles[]" value="{{ $key }}" class="hidden"
+                                            x-model="selectedRoles"
+                                            {{ in_array($key, old('roles', [])) ? 'checked' : '' }}>
+
+                                        <div class="flex justify-between items-start">
+                                            <span class="font-bold text-sm transition-colors"
+                                                :class="selectedRoles.includes('{{ $key }}') ? 'text-red-700' :
+                                                    'text-gray-700'">
+                                                {{ $label }}
+                                            </span>
+
+                                            {{-- Icon Centang muncul jika dipilih --}}
+                                            <template x-if="selectedRoles.includes('{{ $key }}')">
+                                                <svg class="w-5 h-5 text-red-600" fill="currentColor"
+                                                    viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd"
+                                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                        clip-rule="evenodd" />
+                                                </svg>
+                                            </template>
+                                        </div>
+
+                                        <span class="text-[10px] mt-1 leading-tight text-gray-400"
+                                            :class="selectedRoles.includes('{{ $key }}') ? 'text-red-500/70' : ''">
+                                            @if ($key === 'penguji')
+                                                Memberikan akses penilaian ujian
+                                            @else
+                                                Akses administrator {{ $label }}
+                                            @endif
+                                        </span>
+                                    </label>
                                 @endforeach
-                            </select>
+                            </div>
+
+                            <p class="mt-3 text-[10px] text-gray-500 italic">
+                                * Klik pada kotak untuk memilih. Klik lagi untuk membatalkan.
+                                Role pertama yang dipilih akan menjadi Role Utama sistem.
+                            </p>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Nama Lengkap Pengurus</label>
