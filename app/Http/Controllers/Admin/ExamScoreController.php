@@ -12,78 +12,87 @@ use Illuminate\Support\Facades\DB;
 
 class ExamScoreController extends Controller
 {
-    // Tampilkan daftar peserta untuk dinilai
+    /**
+     * Tampilkan halaman penilaian (Scoring Grid)
+     */
     public function index(Exam $exam)
     {
         // Eager load data pendaftaran (participants) dan sabuk
         $participants = $exam->participants()->with(['user', 'currentBelt'])->get();
 
+        // Ambil skor yang sudah ada untuk ditampilkan awal, termasuk nama penguji
         $existingScores = ExamScore::where('exam_id', $exam->id)
+            ->leftJoin('users', 'exam_scores.examiner_id', '=', 'users.id')
+            ->select('exam_scores.*', 'users.name as examiner_name')
             ->get()
             ->keyBy('member_id');
 
         return view('admin.exams.scoring', compact('exam', 'participants', 'existingScores'));
     }
 
-    // Simpan nilai (Auto-Save)
-    public function store(Request $request, Exam $exam)
+    /**
+     * API untuk Fetch Data Scoring secara Real-time (Polling)
+     * Menangani request dari JavaScript (fetchUpdates) agar data antar penguji sinkron
+     */
+    public function show(Exam $exam)
     {
-        $request->validate([
-            'scores' => 'required|array',
-        ]);
+        $scores = ExamScore::where('exam_id', $exam->id)
+            ->leftJoin('users', 'exam_scores.examiner_id', '=', 'users.id')
+            ->select('exam_scores.*', 'users.name as examiner_name')
+            ->get()
+            ->keyBy('member_id');
 
-        try {
-            foreach ($request->scores as $userId => $data) {
-                // Filter hanya menyimpan jika ada data yang diinputkan
-                if (collect($data)->filter()->isNotEmpty()) {
-
-                    // Logic: Jika status bukan 'Lulus', pastikan new_belt_level_id tetap null 
-                    // atau sesuai sabuk saat ini jika sistem Anda mengharuskannya.
-                    $resultStatus = $data['result'] ?? 'Lulus';
-                    $newBeltId = ($resultStatus === 'Lulus') ? ($data['new_belt_level_id'] ?? null) : null;
-
-                    ExamScore::updateOrCreate(
-                        [
-                            'exam_id' => $exam->id,
-                            'member_id' => $userId,
-                        ],
-                        [
-                            'examiner_id' => auth()->id(),
-                            'kihon' => $data['kihon'] ?? null,
-                            'kata' => $data['kata'] ?? null,
-                            'kumite' => $data['kumite'] ?? null,
-                            'result' => $resultStatus,
-                            'new_belt_level_id' => $data['new_belt_level_id'] ?? null, // Simpan saja id yang dikirim dari select
-                        ]
-                    );
-                }
-            }
-
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['status' => 'success', 'message' => 'Data tersimpan otomatis.']);
-            }
-
-            return back()->with('success', 'Semua nilai berhasil disimpan.');
-        } catch (\Exception $e) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
-            }
-            return back()->with('error', 'Gagal menyimpan: ' . $e->getMessage());
-        }
+        return response()->json(['scores' => $scores]);
     }
 
-    // Finalisasi: Update User & Masuk ke Belt History
+    /**
+     * Simpan nilai (Auto-Save via AJAX)
+     * Menggunakan updateOrCreate untuk efisiensi dan mencegah error Integrity Constraint
+     */
+    public function store(Request $request, Exam $exam)
+    {
+        $scores = $request->input('scores', []);
+
+        foreach ($scores as $memberId => $data) {
+            // Validasi: Hanya simpan jika minimal salah satu field penilaian sudah berinteraksi (tidak null)
+            // Ini untuk mengatasi error "Column 'kihon' cannot be null" saat auto-save pertama kali
+            if (isset($data['kihon']) || isset($data['kata']) || isset($data['kumite'])) {
+
+                ExamScore::updateOrCreate(
+                    [
+                        'exam_id' => $exam->id,
+                        'member_id' => $memberId,
+                    ],
+                    [
+                        'examiner_id' => $data['examiner_id'],
+                        'kihon' => $data['kihon'] ?? null,
+                        'kata' => $data['kata'] ?? null,
+                        'kumite' => $data['kumite'] ?? null,
+                        'result' => $data['result'] ?? 'Lulus',
+                        'new_belt_level_id' => $data['new_belt_level_id'] ?? null,
+                    ]
+                );
+            }
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Data berhasil disimpan otomatis'
+        ]);
+    }
+
+    /**
+     * Finalisasi: Update Sabuk User secara permanen & Catat di Belt History
+     */
     public function finalize(Exam $exam)
     {
         DB::beginTransaction();
         try {
-            // Ambil semua skor yang sudah masuk untuk ujian ini
             $scores = ExamScore::where('exam_id', $exam->id)->get();
 
             foreach ($scores as $score) {
                 $isLulus = strtolower(trim($score->result)) === 'lulus';
 
-                // Hanya proses yang Lulus dan memiliki Target Sabuk Baru
                 if ($isLulus && $score->new_belt_level_id) {
                     $member = User::find($score->member_id);
 
@@ -93,7 +102,7 @@ class ExamScoreController extends Controller
                             'belt_level_id' => $score->new_belt_level_id
                         ]);
 
-                        // 2. Catat di riwayat kenaikan sabuk (Belt History)
+                        // 2. Catat Riwayat Kenaikan Sabuk
                         BeltHistory::updateOrCreate(
                             [
                                 'user_id' => $member->id,
@@ -109,16 +118,18 @@ class ExamScoreController extends Controller
                 }
             }
 
-            // Tandai ujian selesai agar tidak bisa diedit sembarangan lagi
+            // 3. Update Status Ujian
             $exam->update(['status' => 'completed']);
 
             DB::commit();
 
-            return redirect()->route('admin.exams.index')->with('success', 'Ujian telah difinalisasi. Data peserta telah diperbarui.');
+            return redirect()->route('admin.exams.index')
+                ->with('success', 'Ujian telah difinalisasi. Sabuk peserta telah diperbarui.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Terjadi kesalahan saat finalisasi: ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Terjadi kesalahan saat finalisasi: ' . $e->getMessage());
         }
     }
 }

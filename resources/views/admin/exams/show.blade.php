@@ -53,16 +53,18 @@
 
         $user = auth()->user();
         $isStruktural = $user->hasRole(['pb', 'pengprov']);
-        $allParticipants = $exam->participants;
+        $allParticipants = $exam
+            ->participants()
+            ->with(['user', 'currentBelt', 'targetBelt', 'dojo'])
+            ->get();
+        $examScores = \App\Models\ExamScore::where('exam_id', $exam->id)->get()->keyBy('member_id');
         $myParticipants = $isStruktural ? $allParticipants : $allParticipants->where('dojo_id', $user->dojo_id);
         $registeredUserIds = $allParticipants->pluck('user_id')->toArray();
         $filteredMembers = $isStruktural ? $members : $members->where('dojo_id', $user->dojo_id);
-
         $totalBiaya = $myParticipants->sum('fee_amount');
         $lunasCount = $myParticipants->where('payment_status', 'paid')->count();
         $pendingCount = $myParticipants->where('payment_status', 'unpaid')->count();
         $totalTagihanPending = $myParticipants->where('payment_status', 'unpaid')->sum('fee_amount');
-
         $rekapPerSabuk = $myParticipants->groupBy('target_belt_id');
         $rekapPerWilayah = $myParticipants->groupBy(fn($p) => $p->dojo->city->name ?? 'TANPA WILAYAH');
     @endphp
@@ -77,8 +79,17 @@
         search: '',
         filterDojo: '',
         filterSabuk: '',
-        {{-- Filter ini sekarang akan merujuk ke Sabuk Sekarang --}}
         filterStatus: '',
+        showModal: false,
+        selectedScore: {},
+        selectedParticipantName: '',
+    
+        openDetail(name, score) {
+            if (!score) return;
+            this.selectedParticipantName = name;
+            this.selectedScore = score;
+            this.showModal = true;
+        },
     
         toggleAll() {
             if (this.selectAll) {
@@ -86,7 +97,7 @@
             } else {
                 let visibleIds = [];
                 document.querySelectorAll('.participant-item').forEach(el => {
-                    if (el.style.display !== 'none') {
+                    if (el.style.display !== 'none' && !el.hasAttribute('data-graded')) {
                         visibleIds.push(el.getAttribute('data-id'));
                     }
                 });
@@ -173,10 +184,10 @@
                     </div>
                 </div>
 
-                {{-- Bulk Payment --}}
+                {{-- Bulk Payment Notification --}}
                 @if (!$isStruktural && $pendingCount > 0)
                     <div
-                        class="bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-xl text-white overflow-hidden relative group">
+                        class="bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-xl text-white overflow-hidden relative">
                         <div class="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                             <div class="text-center md:text-left">
                                 <h3 class="text-xs font-black uppercase tracking-[0.2em] text-indigo-200 mb-1">Tagihan
@@ -187,11 +198,10 @@
                                     class="text-[9px] font-bold text-indigo-100 uppercase tracking-widest opacity-80 mt-1">
                                     Total untuk {{ $pendingCount }} Peserta</p>
                             </div>
-                            <form action="{{ route('admin.exams.bulk-payment', $exam->id) }}" method="POST"
-                                class="w-full md:w-auto">
+                            <form action="{{ route('admin.exams.bulk-payment', $exam->id) }}" method="POST">
                                 @csrf
                                 <button type="submit"
-                                    class="w-full md:w-auto px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-lg flex items-center justify-center gap-3">
+                                    class="px-8 py-4 bg-white text-indigo-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-900 hover:text-white transition-all shadow-lg flex items-center gap-3">
                                     <span>Lanjutkan Pembayaran</span>
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
@@ -209,13 +219,13 @@
                     <div class="col-span-2 md:col-span-1">
                         <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Cari Nama</label>
                         <input type="text" x-model="search" placeholder="Cari..."
-                            class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500">
+                            class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold">
                     </div>
                     @if ($isStruktural)
                         <div>
                             <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Dojo</label>
                             <select x-model="filterDojo"
-                                class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500">
+                                class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold">
                                 <option value="">Semua</option>
                                 @foreach ($myParticipants->pluck('dojo.name')->filter()->unique() as $dojoName)
                                     <option value="{{ $dojoName }}">{{ $dojoName }}</option>
@@ -224,20 +234,19 @@
                         </div>
                     @endif
                     <div>
-                        <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Filter Sabuk
-                            Sekarang</label>
+                        <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Sabuk Sekarang</label>
                         <select x-model="filterSabuk"
-                            class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500">
-                            <option value="">Semua Sabuk</option>
+                            class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold">
+                            <option value="">Semua</option>
                             @foreach ($myParticipants->pluck('currentBelt.name')->filter()->unique() as $beltName)
                                 <option value="{{ $beltName }}">{{ $beltName }}</option>
                             @endforeach
                         </select>
                     </div>
                     <div>
-                        <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Status</label>
+                        <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Status Bayar</label>
                         <select x-model="filterStatus"
-                            class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500">
+                            class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold">
                             <option value="">Semua</option>
                             <option value="paid">LUNAS</option>
                             <option value="unpaid">PENDING</option>
@@ -267,25 +276,32 @@
                         class="hidden md:grid grid-cols-12 gap-4 px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         <div class="col-span-1"><input type="checkbox" @click="toggleAll()" :checked="selectAll"
                                 class="rounded border-slate-300 text-indigo-600"></div>
-                        <div class="col-span-4">Peserta / Dojo</div>
+                        <div class="col-span-3">Peserta / Dojo</div>
                         <div class="col-span-2 text-center">Sabuk (Sekarang → Target)</div>
                         <div class="col-span-2 text-center">Status Bayar</div>
-                        <div class="col-span-2 text-right">Biaya</div>
+                        <div class="col-span-2 text-center">Status Lulus</div>
+                        <div class="col-span-1 text-right">Biaya</div>
                         <div class="col-span-1 text-center">Aksi</div>
                     </div>
 
                     @forelse($myParticipants as $p)
-                        <div class="participant-item bg-white p-4 md:p-3 md:px-8 rounded-[1.5rem] md:rounded-2xl shadow-sm border border-slate-100 md:grid md:grid-cols-12 md:gap-4 md:items-center transition-all hover:border-indigo-200"
+                        @php $scoreData = $examScores->get($p->user_id); @endphp
+                        <div class="participant-item bg-white p-4 md:p-3 md:px-8 rounded-[1.5rem] md:rounded-2xl shadow-sm border border-slate-100 md:grid md:grid-cols-12 md:gap-4 md:items-center transition-all"
                             data-id="{{ $p->id }}"
+                            @if ($scoreData) data-graded="true" 
+                                @click="openDetail('{{ addslashes($p->user->name) }}', {{ $scoreData->toJson() }})"
+                                style="cursor: pointer;" @endif
                             x-show="isMatch('{{ addslashes($p->user->name) }}', '{{ $p->dojo->name ?? '' }}', '{{ $p->currentBelt->name ?? 'Putih' }}', '{{ $p->payment_status }}')"
-                            :class="selectedIds.includes('{{ $p->id }}') ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''">
+                            :class="selectedIds.includes('{{ $p->id }}') ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : (
+                                '{{ $scoreData }}' ? 'hover:bg-slate-50' : '')">
 
-                            <div class="flex justify-between items-start md:col-span-1">
+                            <div class="flex justify-between items-start md:col-span-1" @click.stop>
                                 <input type="checkbox" value="{{ $p->id }}" x-model="selectedIds"
-                                    class="rounded border-slate-300 text-indigo-600 w-5 h-5 md:w-4 md:h-4">
+                                    class="rounded border-slate-300 text-indigo-600 w-5 h-5 md:w-4 md:h-4 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    {{ $scoreData ? 'disabled' : '' }}>
                             </div>
 
-                            <div class="mt-2 md:mt-0 col-span-4">
+                            <div class="mt-2 md:mt-0 col-span-3">
                                 <p class="font-black text-slate-700 uppercase text-xs md:text-sm">{{ $p->user->name }}
                                 </p>
                                 <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
@@ -295,14 +311,10 @@
                             <div class="flex items-center justify-between md:justify-center mt-4 md:mt-0 col-span-2">
                                 <div class="flex items-center gap-1.5">
                                     <span
-                                        class="px-2 py-0.5 rounded text-[8px] font-bold border {{ getBeltColor($p->currentBelt->name ?? 'Putih') }} uppercase opacity-70">
-                                        {{ $p->currentBelt->name ?? 'Putih' }}
-                                    </span>
+                                        class="px-2 py-0.5 rounded text-[8px] font-bold border {{ getBeltColor($p->currentBelt->name ?? 'Putih') }} uppercase opacity-70">{{ $p->currentBelt->name ?? 'Putih' }}</span>
                                     <span class="text-slate-400 text-[10px]">→</span>
                                     <span
-                                        class="px-2.5 py-1 rounded text-[9px] font-black border {{ getBeltColor($p->targetBelt->name) }} uppercase shadow-sm">
-                                        {{ $p->targetBelt->name }}
-                                    </span>
+                                        class="px-2.5 py-1 rounded text-[9px] font-black border {{ getBeltColor($p->targetBelt->name) }} uppercase shadow-sm">{{ $p->targetBelt->name }}</span>
                                 </div>
                             </div>
 
@@ -313,23 +325,46 @@
                                 </span>
                             </div>
 
-                            <div class="flex items-center justify-between md:justify-end mt-2 md:mt-0 col-span-2">
+                            <div class="flex items-center justify-between md:justify-center mt-2 md:mt-0 col-span-2">
+                                @if ($scoreData)
+                                    <span
+                                        class="px-3 py-1 text-[8px] font-black rounded-full {{ strtolower($scoreData->result) === 'lulus' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700' }}">
+                                        {{ strtoupper($scoreData->result) }}
+                                    </span>
+                                @else
+                                    <span class="text-[8px] font-bold text-slate-300 uppercase italic">Belum
+                                        Dinilai</span>
+                                @endif
+                            </div>
+
+                            <div class="flex items-center justify-between md:justify-end mt-2 md:mt-0 col-span-1">
                                 <span
                                     class="font-black text-slate-700 text-xs md:text-sm tracking-tighter">Rp{{ number_format($p->fee_amount, 0, ',', '.') }}</span>
                             </div>
 
-                            <div class="hidden md:block col-span-1 text-center">
-                                <form action="{{ route('admin.exams.remove-member', $p->id) }}" method="POST"
-                                    onsubmit="return confirm('Hapus peserta ini?')">
-                                    @csrf @method('DELETE')
-                                    <button class="text-slate-300 hover:text-rose-500 transition-colors">
-                                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-width="2"
-                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            <div class="hidden md:block col-span-1 text-center" @click.stop>
+                                @if (!$scoreData)
+                                    <form action="{{ route('admin.exams.remove-member', $p->id) }}" method="POST"
+                                        onsubmit="return confirm('Hapus peserta ini?')">
+                                        @csrf @method('DELETE')
+                                        <button class="text-slate-300 hover:text-rose-500 transition-colors">
+                                            <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor"
+                                                viewBox="0 0 24 24">
+                                                <path stroke-width="2"
+                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </form>
+                                @else
+                                    <span title="Sudah dinilai tidak bisa dihapus">
+                                        <svg class="w-4 h-4 mx-auto text-slate-200" fill="currentColor"
+                                            viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                                clip-rule="evenodd" />
                                         </svg>
-                                    </button>
-                                </form>
+                                    </span>
+                                @endif
                             </div>
                         </div>
                     @empty
@@ -340,7 +375,7 @@
                 </div>
             </div>
 
-            {{-- TAB 2: REKAP DETAIL (Kembali ke kode asli Anda) --}}
+            {{-- TAB 2: REKAP KEUANGAN (DITAMPILKAN KEMBALI) --}}
             <div x-show="tab === 'rekap'" x-transition class="space-y-4" x-cloak>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-indigo-600 p-6 rounded-[2rem] text-white shadow-lg">
@@ -357,40 +392,145 @@
                         <h2 class="text-xl font-black mt-1 text-rose-600">{{ $pendingCount }} <span
                                 class="text-xs text-slate-400">Peserta</span></h2>
                     </div>
-                    <div class="bg-slate-900 p-6 rounded-[2rem] text-white shadow-lg">
-                        <span class="text-[9px] font-black uppercase opacity-60 tracking-widest">Total Sabuk</span>
-                        <h2 class="text-xl font-black mt-1">{{ $rekapPerSabuk->count() }} <span
-                                class="text-xs text-slate-400">Level</span></h2>
+                    <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-right">
+                        <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Sabuk Baru</span>
+                        <span class="text-sm font-black text-indigo-600 uppercase"
+                            x-text="selectedScore.new_belt_name || '-'"></span>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                    <div class="lg:col-span-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                        <h3
-                            class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <span class="w-2 h-2 bg-indigo-500 rounded-full"></span> Rincian Sabuk
-                        </h3>
-                        <div class="space-y-3">
+                    {{-- Rincian Per Sabuk --}}
+                    <div
+                        class="lg:col-span-4 bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/50">
+                        <div class="flex items-center justify-between mb-8">
+                            <h3
+                                class="text-[11px] font-black text-slate-800 uppercase tracking-[0.2em] flex items-center gap-3">
+                                <span
+                                    class="flex h-5 w-5 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+                                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    </svg>
+                                </span>
+                                Rincian Distribusi Sabuk
+                            </h3>
+                            <span
+                                class="text-[9px] font-bold py-1 px-3 bg-slate-100 text-slate-500 rounded-full uppercase">
+                                Total: {{ $rekapPerSabuk->flatten()->count() }} Peserta
+                            </span>
+                        </div>
+
+                        <div class="space-y-4">
+                            @php
+                                $maxCount = $rekapPerSabuk->max(fn($items) => $items->count()) ?: 1;
+                                $totalSiswa = $rekapPerSabuk->flatten()->count() ?: 1;
+                            @endphp
+
                             @foreach ($rekapPerSabuk->sortBy(fn($val, $key) => $key) as $beltId => $items)
-                                @php $beltInfo = $items->first()->targetBelt; @endphp
+                                @php
+                                    $beltInfo = $items->first()->currentBelt;
+                                    $count = $items->count();
+                                    $percentage = ($count / $totalSiswa) * 100;
+
+                                    // Mapping warna untuk Progress Bar & Glow Effect
+                                    $colorTheme = match (strtolower($beltInfo->name)) {
+                                        'putih' => [
+                                            'bg' => 'bg-slate-200',
+                                            'text' => 'text-slate-600',
+                                            'bar' => 'bg-slate-400',
+                                        ],
+                                        'kuning' => [
+                                            'bg' => 'bg-yellow-400',
+                                            'text' => 'text-yellow-700',
+                                            'bar' => 'bg-yellow-400',
+                                        ],
+                                        'hijau' => [
+                                            'bg' => 'bg-emerald-500',
+                                            'text' => 'text-emerald-700',
+                                            'bar' => 'bg-emerald-500',
+                                        ],
+                                        'biru' => [
+                                            'bg' => 'bg-blue-600',
+                                            'text' => 'text-blue-700',
+                                            'bar' => 'bg-blue-600',
+                                        ],
+                                        'cokelat' => [
+                                            'bg' => 'bg-amber-800',
+                                            'text' => 'text-amber-900',
+                                            'bar' => 'bg-amber-800',
+                                        ],
+                                        'hitam' => [
+                                            'bg' => 'bg-slate-900',
+                                            'text' => 'text-slate-900',
+                                            'bar' => 'bg-slate-900',
+                                        ],
+                                        default => [
+                                            'bg' => 'bg-indigo-500',
+                                            'text' => 'text-indigo-700',
+                                            'bar' => 'bg-indigo-500',
+                                        ],
+                                    };
+                                @endphp
+
                                 <div
-                                    class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                                    <div class="flex items-center gap-3">
-                                        <span
-                                            class="w-3 h-3 rounded-full border {{ getBeltColor($beltInfo->name) }}"></span>
-                                        <span
-                                            class="text-[10px] font-black text-slate-700 uppercase">{{ $beltInfo->name }}</span>
+                                    class="group relative bg-white border border-slate-100 p-4 rounded-2xl transition-all duration-300 hover:border-indigo-100 hover:shadow-md hover:shadow-indigo-500/5">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="flex items-center gap-3">
+                                            <div class="relative">
+                                                <div
+                                                    class="w-4 h-4 rounded-full border-2 border-white shadow-sm {{ $colorTheme['bg'] }}">
+                                                </div>
+                                                <div
+                                                    class="absolute inset-0 rounded-full blur-[4px] opacity-40 {{ $colorTheme['bg'] }}">
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span
+                                                    class="text-[11px] font-black text-slate-800 uppercase block leading-none mb-1">
+                                                    {{ $beltInfo->name }}
+                                                </span>
+                                                <span
+                                                    class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
+                                                    {{ number_format($percentage, 1) }}% Dari Total
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-right">
+                                            <div class="flex items-center justify-end gap-1.5">
+                                                <span
+                                                    class="text-xs font-black text-slate-900">{{ $count }}</span>
+                                                <span
+                                                    class="text-[9px] font-bold text-slate-400 uppercase">Peserta</span>
+                                            </div>
+                                            <p class="text-[10px] font-black text-indigo-600 tracking-tight">
+                                                Rp{{ number_format($items->sum('fee_amount'), 0, ',', '.') }}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div class="text-right">
-                                        <p class="text-[10px] font-black text-slate-900">{{ $items->count() }} Org</p>
-                                        <p class="text-[8px] font-bold text-slate-400">
-                                            Rp{{ number_format($items->sum('fee_amount'), 0, ',', '.') }}</p>
+
+                                    {{-- Progress Bar --}}
+                                    <div class="w-full h-1.5 bg-slate-50 rounded-full overflow-hidden flex">
+                                        <div class="h-full rounded-full {{ $colorTheme['bar'] }} transition-all duration-500"
+                                            style="width: {{ $percentage }}%"></div>
                                     </div>
                                 </div>
                             @endforeach
                         </div>
+
+                        {{-- Footer Info --}}
+                        <div class="mt-6 pt-5 border-t border-slate-50 flex justify-between items-center px-2">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Total
+                                Revenue</span>
+                            <span class="text-xs font-black text-slate-900">
+                                Rp{{ number_format($rekapPerSabuk->flatten()->sum('fee_amount'), 0, ',', '.') }}
+                            </span>
+                        </div>
                     </div>
 
+                    {{-- Statistik Wilayah atau Status Tagihan --}}
                     <div class="lg:col-span-8">
                         @if ($isStruktural)
                             <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
@@ -411,13 +551,13 @@
                                                 </div>
                                                 <span
                                                     class="text-[10px] font-black bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg">{{ $items->count() }}
-                                                    Orang</span>
+                                                    Org</span>
                                             </div>
                                             <div class="space-y-2">
                                                 @php $percent = $items->count() > 0 ? ($items->where('payment_status', 'paid')->count() / $items->count()) * 100 : 0; @endphp
                                                 <div
                                                     class="flex justify-between text-[9px] font-bold uppercase text-slate-400">
-                                                    <span>Omzet</span>
+                                                    <span>Omzet Terkumpul</span>
                                                     <span
                                                         class="text-slate-700">Rp{{ number_format($items->sum('fee_amount'), 0, ',', '.') }}</span>
                                                 </div>
@@ -436,9 +576,9 @@
                             <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                                 <h3
                                     class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                    <span class="w-2 h-2 bg-orange-500 rounded-full"></span> Status Tagihan Anggota
+                                    <span class="w-2 h-2 bg-orange-500 rounded-full"></span> Status Tagihan Dojo
                                 </h3>
-                                <div class="space-y-2">
+                                <div class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                                     @foreach ($myParticipants as $p)
                                         <div
                                             class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex justify-between items-center">
@@ -446,7 +586,6 @@
                                                 <p class="text-[10px] font-black text-slate-700 uppercase">
                                                     {{ $p->user->name }}</p>
                                                 <p class="text-[8px] text-slate-400 uppercase font-bold">
-                                                    {{ $p->currentBelt->name ?? 'Putih' }} →
                                                     {{ $p->targetBelt->name }}</p>
                                             </div>
                                             <div class="text-right">
@@ -464,29 +603,144 @@
                 </div>
             </div>
         </div>
+
+        {{-- MODAL HASIL UJIAN --}}
+        <div x-show="showModal" class="fixed inset-0 z-[100] overflow-y-auto" x-cloak>
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div x-show="showModal" x-transition:enter="ease-out duration-300"
+                    x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                    x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100"
+                    x-transition:leave-end="opacity-0" @click="showModal = false"
+                    class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm"></div>
+
+                <div x-show="showModal" x-transition:enter="ease-out duration-300"
+                    x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave="ease-in duration-200"
+                    x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                    x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                    class="inline-block w-full max-w-lg overflow-hidden text-left align-bottom transition-all transform bg-white rounded-[2.5rem] shadow-2xl sm:my-8 sm:align-middle">
+
+                    <div class="bg-white p-8">
+                        <div class="flex justify-between items-start mb-6">
+                            <div>
+                                <h3 class="text-xl font-black text-slate-800 uppercase"
+                                    x-text="selectedParticipantName"></h3>
+                                <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-widest mt-1">Hasil
+                                    Penilaian Ujian</p>
+                            </div>
+                            <button @click="showModal = false"
+                                class="text-slate-400 hover:text-slate-600 transition-colors">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 mb-6">
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">Status
+                                    Akhir</span>
+                                <span class="text-sm font-black uppercase"
+                                    :class="selectedScore.result?.toLowerCase() === 'lulus' ? 'text-emerald-600' :
+                                        'text-rose-600'"
+                                    x-text="selectedScore.result"></span>
+                            </div>
+                            <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-right">
+                                <span class="text-[9px] font-black text-slate-400 uppercase block mb-1">
+                                    Sabuk Baru
+                                </span>
+                                <span class="text-sm font-black"
+                                    :class="{
+                                        'text-slate-400': [1].includes(selectedScore.new_belt_level_id),
+                                        'text-yellow-500': [2, 3].includes(selectedScore.new_belt_level_id),
+                                        'text-orange-500': [4].includes(selectedScore.new_belt_level_id),
+                                        'text-green-600': [5].includes(selectedScore.new_belt_level_id),
+                                        'text-blue-600': [6].includes(selectedScore.new_belt_level_id),
+                                        'text-purple-600': [7].includes(selectedScore.new_belt_level_id),
+                                        'text-amber-800': [8, 9, 10].includes(selectedScore.new_belt_level_id),
+                                        'text-black': [11].includes(selectedScore.new_belt_level_id),
+                                        'text-indigo-600': !selectedScore.new_belt_level_id
+                                    }"
+                                    x-text="(() => {
+            const belts = {
+                1: 'Putih', 2: 'Kuning Muda', 3: 'Kuning Tua', 4: 'Orange', 
+                5: 'Hijau', 6: 'Biru', 7: 'Ungu', 8: 'Cokelat', 
+                9: 'Cokelat', 10: 'Cokelat', 11: 'Hitam'
+            };
+            const kyu = {
+                1: '10', 2: '9', 3: '8', 4: '7', 5: '6', 
+                6: '5', 7: '4', 8: '3', 9: '2', 10: '1'
+            };
+            const name = belts[selectedScore.new_belt_level_id];
+            const kyuVal = kyu[selectedScore.new_belt_level_id];
+            
+            return name ? (name + (kyuVal ? ' (Kyu ' + kyuVal + ')' : '')) : '-';
+        })()">
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 mb-6">
+                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block">Rincian
+                                Nilai</olabel>
+
+                                <div class="grid grid-cols-3 gap-3">
+                                    <div class="p-3 bg-white border border-slate-100 rounded-xl shadow-sm text-center">
+                                        <p class="text-[8px] text-slate-400 uppercase font-bold">Kihon</p>
+                                        <p class="text-xs font-black text-slate-700"
+                                            x-text="selectedScore.kihon || '-'"></p>
+                                    </div>
+                                    <div class="p-3 bg-white border border-slate-100 rounded-xl shadow-sm text-center">
+                                        <p class="text-[8px] text-slate-400 uppercase font-bold">Kata</p>
+                                        <p class="text-xs font-black text-slate-700"
+                                            x-text="selectedScore.kata || '-'"></p>
+                                    </div>
+                                    <div class="p-3 bg-white border border-slate-100 rounded-xl shadow-sm text-center">
+                                        <p class="text-[8px] text-slate-400 uppercase font-bold">Kumite</p>
+                                        <p class="text-xs font-black text-slate-700"
+                                            x-text="selectedScore.kumite || '-'"></p>
+                                    </div>
+                                </div>
+                        </div>
+
+                        {{-- <div class="space-y-4">
+                            <div>
+                                <label
+                                    class="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-2">Catatan
+                                    Penguji</label>
+                                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100 min-h-[80px]">
+                                    <p class="text-xs font-bold text-slate-600 leading-relaxed"
+                                        x-text="selectedScore.notes || 'Tidak ada catatan khusus.'"></p>
+                                </div>
+                            </div>
+                        </div> --}}
+
+                        <div class="mt-8">
+                            <button @click="showModal = false"
+                                class="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-lg">
+                                Tutup Detail
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             new TomSelect('#user-select', {
                 plugins: ['remove_button'],
-                maxOptions: null,
+                maxItems: 50,
+                render: {
+                    no_results: function(data, escape) {
+                        return '<div class="no-results text-[10px] font-bold p-2 text-slate-400">Anggota tidak ditemukan...</div>';
+                    },
+                }
             });
         });
     </script>
-
-    <style>
-        [x-cloak] {
-            display: none !important;
-        }
-
-        .ts-control {
-            border: none !important;
-            padding: 12px !important;
-            border-radius: 12px !important;
-            background: #f8fafc !important;
-            font-size: 12px !important;
-            font-weight: 700 !important;
-        }
-    </style>
 </x-app-layout>

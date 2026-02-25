@@ -10,6 +10,7 @@ use App\Models\City;
 use App\Models\BeltLevel;
 use App\Models\ExamParticipant;
 use App\Models\ExamFee;
+use App\Models\ExamScore;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\RedirectResponse;
@@ -332,5 +333,77 @@ class ExamController extends Controller
         return back()->with('success', 'Konfigurasi biaya dihapus.');
     }
 
+    // Tambahkan di dalam class ExamController
+
+    public function showScoring(Exam $exam, $memberId)
+    {
+        $score = \App\Models\ExamScore::where('exam_id', $exam->id)
+            ->where('member_id', $memberId)
+            ->first();
+
+        if (!$score) {
+            return response()->json(['message' => 'Data tidak ditemukan'], 404);
+        }
+
+        // Mapping manual berdasarkan data gambar tabel belt_levels Anda
+        $beltMapping = [
+            1 => 'Putih - Kyu 10',
+            2 => 'Kuning Muda - Kyu 9',
+            3 => 'Kuning Tua - Kyu 8',
+            4 => 'Orange - Kyu 7',
+            5 => 'Hijau - Kyu 6',
+            6 => 'Biru - Kyu 5',
+            7 => 'Ungu - Kyu 4',
+            8 => 'Cokelat - Kyu 3',
+            9 => 'Cokelat - Kyu 2',
+            10 => 'Cokelat - Kyu 1',
+            11 => 'Hitam - DAN I',
+            12 => 'Hitam - DAN II',
+            13 => 'Hitam - DAN III',
+            14 => 'Hitam - DAN IV',
+            15 => 'Hitam - DAN V',
+            16 => 'Hitam - DAN VI',
+        ];
+
+        // Ambil string berdasarkan ID yang ada di kolom new_belt_level_id
+        $newBeltName = $beltMapping[$score->new_belt_level_id] ?? 'Level ' . $score->new_belt_level_id;
+
+        return response()->json([
+            'kihon' => $score->kihon,
+            'kata' => $score->kata,
+            'kumite' => $score->kumite,
+            'result' => $score->result,
+            'notes' => $score->notes ?? 'Tidak ada catatan khusus.',
+            'new_belt_name' => $newBeltName // Data ini yang akan dikirim ke Modal
+        ]);
+    }
+
+    public function getScoringDetail($examId, $memberId)
+    {
+        // Kita ambil data skor dan sertakan relasi newBeltLevel
+        $score = \App\Models\ExamScore::where('exam_id', $examId)
+            ->where('member_id', $memberId)
+            ->with(['newBeltLevel'])
+            ->first();
+
+        if (!$score) {
+            return response()->json(['message' => 'Data tidak ditemukan'], 404);
+        }
+
+        // Buat string format: "Nama Sabuk (Kyu X)"
+        $beltInfo = '-';
+        if ($score->newBeltLevel) {
+            $beltInfo = $score->newBeltLevel->name . " - Kyu " . $score->newBeltLevel->order;
+        }
+
+        return response()->json([
+            'kihon' => $score->kihon,
+            'kata' => $score->kata,
+            'kumite' => $score->kumite,
+            'result' => $score->result,
+            'notes' => $score->notes,
+            'new_belt_name' => $beltInfo // Ini yang akan dibaca x-text
+        ]);
+    }
 
 }

@@ -24,7 +24,7 @@
         </div>
     </x-slot>
 
-    <div class="py-8 bg-[#f8fafc]">
+    <div class="py-8 ">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
             {{-- 1. NOTIFIKASI SK (Premium Alert) --}}

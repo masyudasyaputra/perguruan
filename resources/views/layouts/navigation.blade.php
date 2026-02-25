@@ -11,49 +11,72 @@
     $isSistemAdmin = $hasRole(['pb', 'pengprov']);
 @endphp
 
-<nav x-data="{ open: false }" class="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-slate-100 shadow-sm">
+<style>
+    .gold-gradient-text {
+        background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .shokaido-nav-active {
+        background: linear-gradient(135deg, #8b0000 0%, #5a0000 100%);
+        color: white !important;
+    }
+</style>
+
+<nav x-data="{ open: false }"
+    class="bg-white/95 dark:bg-[#050505]/95 backdrop-blur-xl sticky top-0 z-50 border-b border-[#bf953f]/20 shadow-lg shadow-red-900/5">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-20">
             <div class="flex">
                 {{-- Logo Section --}}
                 <div class="shrink-0 flex items-center">
                     <a href="{{ $isAdmin ? route('admin.dashboard') : route('dashboard') }}"
-                        class="hover:opacity-80 transition-opacity">
-                        <x-application-logo class="block h-10 w-auto fill-current text-red-600" />
+                        class="flex items-center gap-3 group transition-transform active:scale-95">
+                        <img src="{{ asset('images/logo.png') }}" alt="Logo"
+                            class="h-12 w-auto drop-shadow-sm group-hover:drop-shadow-md transition-all">
+                        <div class="hidden md:flex flex-col">
+                            <span
+                                class="font-black tracking-tighter text-lg leading-none text-slate-900 dark:text-white uppercase">SHOKAIDO<span
+                                    class="gold-gradient-text">.OS</span></span>
+                            <span
+                                class="text-[8px] font-bold text-red-700 uppercase tracking-[0.2em] leading-tight">Shotokan
+                                Kandaga Indonesia</span>
+                        </div>
                     </a>
                 </div>
 
                 {{-- Desktop Menu --}}
-                <div class="hidden space-x-2 sm:-my-px sm:ms-10 sm:flex items-center">
+                <div class="hidden space-x-1.5 sm:-my-px sm:ms-10 sm:flex items-center">
 
                     {{-- 1. Dashboard --}}
                     <x-nav-link :href="$isAdmin ? route('admin.dashboard') : route('dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('dashboard')"
-                        class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.dashboard') || request()->routeIs('dashboard') ? 'bg-red-50 text-red-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50' }}">
+                        class="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-200 border-none {{ request()->routeIs('admin.dashboard') || request()->routeIs('dashboard') ? 'shokaido-nav-active shadow-md shadow-red-900/20' : 'text-slate-500 hover:bg-red-50 hover:text-red-700' }}">
                         {{ __('Dashboard') }}
                     </x-nav-link>
 
                     {{-- 2. Data Pengurus & Manajemen Dojo --}}
                     @if ($isStruktural)
                         <x-nav-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')"
-                            class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.officials.*') ? 'bg-red-50 text-red-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50' }}">
-                            {{ __('Data Pengurus') }}
+                            class="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-200 border-none {{ request()->routeIs('admin.officials.*') ? 'shokaido-nav-active shadow-md shadow-red-900/20' : 'text-slate-500 hover:bg-red-50 hover:text-red-700' }}">
+                            {{ __('Pengurus') }}
                         </x-nav-link>
 
                         <x-nav-link :href="route('admin.dojos.index')" :active="request()->routeIs('admin.dojos.*')"
-                            class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.dojos.*') ? 'bg-red-50 text-red-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50' }}">
-                            {{ __('Manajemen Dojo') }}
+                            class="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-200 border-none {{ request()->routeIs('admin.dojos.*') ? 'shokaido-nav-active shadow-md shadow-red-900/20' : 'text-slate-500 hover:bg-red-50 hover:text-red-700' }}">
+                            {{ __('Dojo') }}
                         </x-nav-link>
                     @endif
 
                     {{-- 3. Ujian Sabuk --}}
                     @if ($isAdmin)
                         <x-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')"
-                            class="px-4 py-2 rounded-xl text-sm font-bold tracking-tight transition-all duration-200 border-none {{ request()->routeIs('admin.exams.*') ? 'bg-red-50 text-red-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50' }}">
+                            class="px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all duration-200 border-none {{ request()->routeIs('admin.exams.*') ? 'shokaido-nav-active shadow-md shadow-red-900/20' : 'text-slate-500 hover:bg-red-50 hover:text-red-700' }}">
                             <span class="flex items-center gap-2">
-                                <div
-                                    class="w-1.5 h-1.5 rounded-full {{ request()->routeIs('admin.exams.*') ? 'bg-red-600' : 'bg-slate-300' }}">
-                                </div>
-                                {{ __('Ujian Sabuk') }}
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M2,11L12,16L22,11L12,6L2,11M12,18L2,13V15L12,20L22,15V13L12,18Z" />
+                                </svg>
+                                {{ __('Ujian') }}
                             </span>
                         </x-nav-link>
                     @endif
@@ -64,37 +87,38 @@
                             <x-dropdown align="left" width="56">
                                 <x-slot name="trigger">
                                     <button
-                                        class="inline-flex items-center px-4 py-2 border-none text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.provinces.*') || request()->routeIs('admin.fees.*') || request()->routeIs('admin.exams.fees.*') ? 'bg-gray-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50' }}">
+                                        class="inline-flex items-center px-4 py-2 border border-slate-100 dark:border-white/10 text-[11px] font-black uppercase tracking-widest rounded-xl transition-all duration-200 focus:outline-none {{ request()->routeIs('admin.users.*') || request()->routeIs('admin.provinces.*') || request()->routeIs('admin.fees.*') || request()->routeIs('admin.exams.fees.*') ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50' }}">
                                         <div>{{ __('Sistem') }}</div>
-                                        <svg class="ms-1.5 h-4 w-4" fill="none" stroke="currentColor"
-                                            viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                        <svg class="ms-1.5 h-3 w-3 transition-transform group-hover:rotate-180"
+                                            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
                                                 d="M19 9l-7 7-7-7" />
                                         </svg>
                                     </button>
                                 </x-slot>
 
                                 <x-slot name="content">
-                                    <div class="p-2 space-y-0.5">
+                                    <div class="p-2 space-y-0.5 bg-white dark:bg-zinc-900">
                                         <div
-                                            class="px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                            Pengaturan Utama</div>
+                                            class="px-3 py-2 text-[9px] font-black uppercase tracking-[0.3em] text-red-700 dark:text-[#bf953f] opacity-80">
+                                            Core Settings</div>
                                         <x-dropdown-link :href="route('admin.users.index')"
-                                            class="rounded-lg font-semibold {{ request()->routeIs('admin.users.*') ? 'text-red-600 bg-red-50' : '' }}">
-                                            {{ __('Manajemen User') }}
+                                            class="rounded-lg text-xs font-bold uppercase tracking-tight {{ request()->routeIs('admin.users.*') ? 'bg-red-50 text-red-700' : '' }}">
+                                            {{ __('User Management') }}
                                         </x-dropdown-link>
                                         <x-dropdown-link :href="route('admin.exams.fees.index')"
-                                            class="rounded-lg font-semibold {{ request()->routeIs('admin.exams.fees.*') ? 'text-red-600 bg-red-50' : '' }}">
-                                            {{ __('Master Biaya Ujian') }}
+                                            class="rounded-lg text-xs font-bold uppercase tracking-tight {{ request()->routeIs('admin.exams.fees.*') ? 'bg-red-50 text-red-700' : '' }}">
+                                            {{ __('Biaya Ujian') }}
                                         </x-dropdown-link>
                                         <x-dropdown-link :href="route('admin.fees.index')"
-                                            class="rounded-lg font-semibold {{ request()->routeIs('admin.fees.*') ? 'text-red-600 bg-red-50' : '' }}">
+                                            class="rounded-lg text-xs font-bold uppercase tracking-tight {{ request()->routeIs('admin.fees.*') ? 'bg-red-50 text-red-700' : '' }}">
                                             {{ __('Konfigurasi Iuran') }}
                                         </x-dropdown-link>
                                         @if ($hasRole('pb'))
+                                            <div class="my-1 border-t border-slate-100 dark:border-white/5"></div>
                                             <x-dropdown-link :href="route('admin.provinces.index')"
-                                                class="rounded-lg font-semibold {{ request()->routeIs('admin.provinces.*') ? 'text-red-600 bg-red-50' : '' }}">
-                                                {{ __('Data Wilayah') }}
+                                                class="rounded-lg text-xs font-bold uppercase tracking-tight {{ request()->routeIs('admin.provinces.*') ? 'bg-red-50 text-red-700' : '' }}">
+                                                {{ __('Wilayah / Pengprov') }}
                                             </x-dropdown-link>
                                         @endif
                                     </div>
@@ -105,54 +129,50 @@
                 </div>
             </div>
 
-            {{-- User Settings Dropdown (Multi-Role Style Awal) --}}
+            {{-- User Settings Dropdown --}}
             <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <x-dropdown align="right" width="64">
                     <x-slot name="trigger">
                         <button
-                            class="group flex items-center gap-3 px-3 py-1.5 border border-slate-100 rounded-2xl hover:bg-slate-50 transition-all duration-200 focus:outline-none">
+                            class="group flex items-center gap-3 px-3 py-1.5 border-2 border-slate-100 dark:border-white/5 rounded-2xl hover:border-red-600/30 hover:bg-red-50/50 transition-all duration-300 focus:outline-none">
                             <div class="flex flex-col text-right">
                                 <span
-                                    class="text-sm font-black text-slate-900 leading-none">{{ Auth::user()->name }}</span>
-                                {{-- Daftar Badge Role --}}
-                                <div class="flex flex-wrap justify-end gap-1 mt-1.5 max-w-[180px]">
+                                    class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none">{{ Auth::user()->name }}</span>
+                                <div class="flex flex-wrap justify-end gap-1 mt-1">
                                     @foreach ($userRoles as $role)
                                         <span
-                                            class="text-[8px] uppercase font-bold text-white bg-red-600 px-1.5 py-0.5 rounded italic leading-tight shadow-sm">
+                                            class="text-[7px] uppercase font-black text-white bg-gradient-to-r from-red-700 to-red-600 px-1.5 py-0.5 rounded shadow-sm">
                                             {{ str_replace('_', ' ', $role) }}
                                         </span>
                                     @endforeach
                                 </div>
                             </div>
                             <div
-                                class="h-10 w-10 rounded-xl bg-gray-900 flex items-center justify-center text-white font-black text-sm shadow-md group-hover:rotate-3 transition-transform">
+                                class="h-10 w-10 rounded-xl bg-gradient-to-br from-slate-800 to-black flex items-center justify-center text-[#bf953f] border border-[#bf953f]/30 font-black text-sm shadow-md group-hover:scale-105 transition-transform">
                                 {{ substr(Auth::user()->name, 0, 1) }}
                             </div>
                         </button>
                     </x-slot>
 
                     <x-slot name="content">
-                        <div class="p-2">
-                            <div class="px-3 py-2 border-b border-slate-50 mb-1">
-                                <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">
-                                    Status Login</p>
-                                <div class="flex flex-col gap-1 mt-2">
-                                    @foreach ($userRoles as $role)
-                                        <p class="text-[11px] font-black text-gray-800 uppercase italic leading-none">
-                                            • {{ str_replace('_', ' ', $role) }}
-                                        </p>
-                                    @endforeach
-                                </div>
+                        <div class="p-2 bg-white dark:bg-zinc-900">
+                            <div
+                                class="px-3 py-3 border-b border-slate-50 dark:border-white/5 mb-1 bg-slate-50/50 dark:bg-white/5 rounded-t-lg">
+                                <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Account
+                                    Secure</p>
+                                <p class="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                                    {{ Auth::user()->email }}</p>
                             </div>
-                            <x-dropdown-link :href="route('profile.edit')" class="rounded-lg font-medium">
-                                {{ __('Edit Profil') }}
+                            <x-dropdown-link :href="route('profile.edit')"
+                                class="rounded-lg text-xs font-bold uppercase tracking-tight">
+                                {{ __('Pengaturan Profil') }}
                             </x-dropdown-link>
                             <form method="POST" action="{{ route('logout') }}">
                                 @csrf
                                 <x-dropdown-link :href="route('logout')"
                                     onclick="event.preventDefault(); this.closest('form').submit();"
-                                    class="rounded-lg font-medium text-red-600 hover:bg-red-50">
-                                    {{ __('Log Out') }}
+                                    class="rounded-lg text-xs font-black uppercase tracking-tight text-red-600 hover:bg-red-50">
+                                    {{ __('Keluar Sistem') }}
                                 </x-dropdown-link>
                             </form>
                         </div>
@@ -163,12 +183,12 @@
             {{-- Hamburger Mobile --}}
             <div class="-me-2 flex items-center sm:hidden">
                 <button @click="open = ! open"
-                    class="inline-flex items-center justify-center p-2 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    class="inline-flex items-center justify-center p-2.5 rounded-xl text-slate-500 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-slate-100">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path :class="{ 'hidden': open, 'inline-flex': !open }" stroke-linecap="round"
-                            stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16" />
+                            stroke-linejoin="round" stroke-width="3" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{ 'hidden': !open, 'inline-flex': open }" stroke-linecap="round"
-                            stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" />
+                            stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
@@ -176,33 +196,46 @@
     </div>
 
     {{-- Mobile Menu --}}
-    <div x-show="open" x-cloak class="sm:hidden bg-white border-t border-slate-100 pb-6 shadow-xl">
+    <div x-show="open" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0" x-cloak
+        class="sm:hidden bg-white dark:bg-[#050505] border-t border-[#bf953f]/20 pb-8 shadow-2xl">
         <div class="pt-4 pb-3 space-y-1 px-4">
-            <x-responsive-nav-link :href="$isAdmin ? route('admin.dashboard') : route('dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('dashboard')" class="rounded-xl font-bold">
+            <x-responsive-nav-link :href="$isAdmin ? route('admin.dashboard') : route('dashboard')" :active="request()->routeIs('admin.dashboard') || request()->routeIs('dashboard')"
+                class="rounded-xl font-black uppercase text-xs tracking-widest py-3 {{ request()->routeIs('admin.dashboard') || request()->routeIs('dashboard') ? 'bg-red-700 text-white' : '' }}">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
 
             @if ($isStruktural)
-                <x-responsive-nav-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')" class="rounded-xl font-bold">
+                <x-responsive-nav-link :href="route('admin.officials.index')" :active="request()->routeIs('admin.officials.*')"
+                    class="rounded-xl font-black uppercase text-xs tracking-widest py-3">
                     {{ __('Data Pengurus') }}
                 </x-responsive-nav-link>
-                <x-responsive-nav-link :href="route('admin.dojos.index')" :active="request()->routeIs('admin.dojos.*')" class="rounded-xl font-bold">
+                <x-responsive-nav-link :href="route('admin.dojos.index')" :active="request()->routeIs('admin.dojos.*')"
+                    class="rounded-xl font-black uppercase text-xs tracking-widest py-3">
                     {{ __('Manajemen Dojo') }}
                 </x-responsive-nav-link>
             @endif
 
-            @if ($isAdmin)
-                <x-responsive-nav-link :href="route('admin.exams.index')" :active="request()->routeIs('admin.exams.*')" class="rounded-xl font-bold text-red-600">
-                    {{ __('Ujian Sabuk') }}
-                </x-responsive-nav-link>
-            @endif
+            <div class="my-4 border-t border-slate-100 dark:border-white/5"></div>
 
-            @if ($isSistemAdmin)
-                <div class="my-4 border-t border-slate-100 mx-2"></div>
-                <x-responsive-nav-link :href="route('admin.users.index')" :active="request()->routeIs('admin.users.*')" class="rounded-xl font-bold">
-                    {{ __('Manajemen User') }}
-                </x-responsive-nav-link>
-            @endif
+            <div class="px-4 py-2 bg-slate-50 dark:bg-white/5 rounded-2xl">
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">User Authenticated</p>
+                <div class="flex items-center gap-3 mb-4">
+                    <div
+                        class="h-10 w-10 rounded-lg bg-black text-[#bf953f] flex items-center justify-center font-black border border-[#bf953f]/30">
+                        {{ substr(Auth::user()->name, 0, 1) }}
+                    </div>
+                    <div>
+                        <p class="text-xs font-black uppercase dark:text-white">{{ Auth::user()->name }}</p>
+                        <p class="text-[10px] font-bold text-red-700 uppercase">Shokaido Member</p>
+                    </div>
+                </div>
+                <form method="POST" action="{{ route('logout') }}">
+                    @csrf
+                    <button type="submit"
+                        class="w-full py-3 bg-red-50 text-red-700 rounded-xl text-[10px] font-black uppercase tracking-widest">Logout</button>
+                </form>
+            </div>
         </div>
     </div>
 </nav>

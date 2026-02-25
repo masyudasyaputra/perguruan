@@ -55,14 +55,17 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         // Manajemen Ujian (View Only & Registration)
         Route::get('/exams', [ExamController::class, 'index'])->name('exams.index');
         Route::get('/exams/{exam}', [ExamController::class, 'show'])->name('exams.show');
+        Route::get('admin/exams/{exam}/scoring/{member}', [App\Http\Controllers\Admin\ExamController::class, 'showScoring'])
+            ->name('admin.exams.scoring.show');
         Route::post('/exams/{exam}/add-member', [ExamController::class, 'registerMember'])->name('exams.register-member');
         Route::post('/exams/{exam}/bulk-payment', [ExamController::class, 'bulkPayment'])->name('exams.bulk-payment');
         Route::delete('/exams/participants/{participant}', [ExamController::class, 'removeMember'])->name('exams.remove-member');
         Route::delete('/exams/{exam}/bulk-remove', [ExamController::class, 'bulkRemoveMember'])->name('exams.bulk-remove-member');
 
         // --- MODUL PENILAIAN (Scoring) ---
-        // Menggunakan rute flat agar sinkron dengan pemanggilan route('admin.exams.scoring') di Blade
+        // Sinkronisasi penamaan route agar sesuai dengan pemanggilan di Blade
         Route::get('exams/{exam}/scoring', [ExamScoreController::class, 'index'])->name('exams.scoring');
+        Route::get('exams/{exam}/scoring/data', [ExamScoreController::class, 'show'])->name('exams.scoring.show');
         Route::post('exams/{exam}/scoring', [ExamScoreController::class, 'store'])->name('exams.scoring.store');
         Route::post('exams/{exam}/scoring/finalize', [ExamScoreController::class, 'finalize'])->name('exams.scoring.finalize');
     });
