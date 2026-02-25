@@ -77,45 +77,50 @@
         search: '',
         filterDojo: '',
         filterSabuk: '',
+        {{-- Filter ini sekarang akan merujuk ke Sabuk Sekarang --}}
         filterStatus: '',
     
         toggleAll() {
-            this.selectAll = !this.selectAll;
             if (this.selectAll) {
-                this.selectedIds = Array.from(document.querySelectorAll('.participant-item'))
-                    .filter(el => el.style.display !== 'none')
-                    .map(el => el.getAttribute('data-id'));
-            } else {
                 this.selectedIds = [];
+            } else {
+                let visibleIds = [];
+                document.querySelectorAll('.participant-item').forEach(el => {
+                    if (el.style.display !== 'none') {
+                        visibleIds.push(el.getAttribute('data-id'));
+                    }
+                });
+                this.selectedIds = visibleIds;
             }
+            this.selectAll = !this.selectAll;
         },
     
-        isMatch(name, dojo, sabuk, status) {
+        isMatch(name, dojo, sabukSekarang, status) {
             const matchSearch = name.toLowerCase().includes(this.search.toLowerCase());
             const matchDojo = this.filterDojo === '' || dojo === this.filterDojo;
-            const matchSabuk = this.filterSabuk === '' || sabuk === this.filterSabuk;
+            const matchSabuk = this.filterSabuk === '' || sabukSekarang === this.filterSabuk;
             const matchStatus = this.filterStatus === '' || status === this.filterStatus;
             return matchSearch && matchDojo && matchSabuk && matchStatus;
         }
     }">
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
-
             {{-- HEADER TABS --}}
             <div
                 class="flex p-1 bg-slate-200/60 rounded-2xl w-full md:w-fit mx-auto border border-slate-200 shadow-inner">
                 <button @click="tab = 'operasional'"
                     :class="tab === 'operasional' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'"
-                    class="flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Pendaftaran</button>
+                    class="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Pendaftaran</button>
                 <button @click="tab = 'rekap'"
                     :class="tab === 'rekap' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'"
-                    class="flex-1 md:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Rekap
+                    class="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Rekap
                     Keuangan</button>
             </div>
 
             {{-- TAB 1: OPERASIONAL --}}
             <div x-show="tab === 'operasional'" x-transition class="space-y-4">
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                    {{-- Info Card --}}
                     <div class="lg:col-span-3">
                         <div
                             class="bg-slate-900 p-6 rounded-[2rem] shadow-lg text-white relative overflow-hidden h-full">
@@ -129,15 +134,14 @@
                                     <span class="text-[8px] font-bold uppercase tracking-widest text-slate-400">Total
                                         Peserta</span>
                                 </div>
-                                <div class="text-right">
-                                    <span
-                                        class="px-2 py-1 bg-indigo-500 rounded text-[8px] font-black uppercase">{{ $exam->status }}</span>
-                                </div>
+                                <span
+                                    class="px-2 py-1 bg-indigo-500 rounded text-[8px] font-black uppercase">{{ $exam->status }}</span>
                             </div>
                             <div class="absolute -right-4 -bottom-4 w-24 h-24 bg-indigo-500/10 rounded-full"></div>
                         </div>
                     </div>
 
+                    {{-- Registration Form --}}
                     <div class="lg:col-span-9 bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100">
                         <form action="{{ route('admin.exams.register-member', $exam->id) }}" method="POST">
                             @csrf
@@ -169,7 +173,7 @@
                     </div>
                 </div>
 
-                {{-- SECTION PEMBAYARAN MASAL (PINDAH KE TAB PENDAFTARAN) --}}
+                {{-- Bulk Payment --}}
                 @if (!$isStruktural && $pendingCount > 0)
                     <div
                         class="bg-gradient-to-br from-indigo-600 to-indigo-700 p-6 rounded-[2.5rem] shadow-xl text-white overflow-hidden relative group">
@@ -196,9 +200,6 @@
                                 </button>
                             </form>
                         </div>
-                        <div
-                            class="absolute -right-10 -bottom-10 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all">
-                        </div>
                     </div>
                 @endif
 
@@ -216,18 +217,19 @@
                             <select x-model="filterDojo"
                                 class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500">
                                 <option value="">Semua</option>
-                                @foreach ($myParticipants->pluck('dojo.name')->unique() as $dojoName)
+                                @foreach ($myParticipants->pluck('dojo.name')->filter()->unique() as $dojoName)
                                     <option value="{{ $dojoName }}">{{ $dojoName }}</option>
                                 @endforeach
                             </select>
                         </div>
                     @endif
                     <div>
-                        <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Sabuk</label>
+                        <label class="text-[8px] font-black text-slate-400 uppercase mb-1 block">Filter Sabuk
+                            Sekarang</label>
                         <select x-model="filterSabuk"
                             class="w-full bg-slate-50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500">
-                            <option value="">Semua</option>
-                            @foreach ($myParticipants->pluck('targetBelt.name')->unique() as $beltName)
+                            <option value="">Semua Sabuk</option>
+                            @foreach ($myParticipants->pluck('currentBelt.name')->filter()->unique() as $beltName)
                                 <option value="{{ $beltName }}">{{ $beltName }}</option>
                             @endforeach
                         </select>
@@ -243,30 +245,30 @@
                     </div>
                 </div>
 
-                {{-- LIST PESERTA --}}
+                {{-- PARTICIPANT LIST --}}
                 <div class="space-y-3">
-                    <div x-show="selectedIds.length > 0"
+                    <div x-show="selectedIds.length > 0" x-cloak
                         class="bg-rose-600 px-6 py-3 rounded-2xl flex justify-between items-center shadow-lg sticky top-4 z-30 transition-all">
                         <span class="text-[10px] font-black text-white uppercase tracking-widest italic">Terpilih: <span
                                 x-text="selectedIds.length"></span> Peserta</span>
                         <form action="{{ route('admin.exams.bulk-remove-member', $exam->id) }}" method="POST"
                             onsubmit="return confirm('Hapus semua peserta yang dipilih?')">
                             @csrf @method('DELETE')
-                            <template x-for="id in selectedIds" :key="id"><input type="hidden"
-                                    name="participant_ids[]" :value="id"></template>
+                            <template x-for="id in selectedIds" :key="id">
+                                <input type="hidden" name="participant_ids[]" :value="id">
+                            </template>
                             <button type="submit"
                                 class="px-4 py-2 bg-white text-rose-600 rounded-lg font-black text-[9px] uppercase tracking-widest shadow-md">Hapus
                                 Masal</button>
                         </form>
                     </div>
 
-                    {{-- Table Header --}}
                     <div
                         class="hidden md:grid grid-cols-12 gap-4 px-8 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">
                         <div class="col-span-1"><input type="checkbox" @click="toggleAll()" :checked="selectAll"
                                 class="rounded border-slate-300 text-indigo-600"></div>
                         <div class="col-span-4">Peserta / Dojo</div>
-                        <div class="col-span-2 text-center">Target Sabuk</div>
+                        <div class="col-span-2 text-center">Sabuk (Sekarang → Target)</div>
                         <div class="col-span-2 text-center">Status Bayar</div>
                         <div class="col-span-2 text-right">Biaya</div>
                         <div class="col-span-1 text-center">Aksi</div>
@@ -275,58 +277,58 @@
                     @forelse($myParticipants as $p)
                         <div class="participant-item bg-white p-4 md:p-3 md:px-8 rounded-[1.5rem] md:rounded-2xl shadow-sm border border-slate-100 md:grid md:grid-cols-12 md:gap-4 md:items-center transition-all hover:border-indigo-200"
                             data-id="{{ $p->id }}"
-                            x-show="isMatch('{{ $p->user->name }}', '{{ $p->dojo->name ?? '' }}', '{{ $p->targetBelt->name }}', '{{ $p->payment_status }}')"
+                            x-show="isMatch('{{ addslashes($p->user->name) }}', '{{ $p->dojo->name ?? '' }}', '{{ $p->currentBelt->name ?? 'Putih' }}', '{{ $p->payment_status }}')"
                             :class="selectedIds.includes('{{ $p->id }}') ? 'ring-2 ring-indigo-500 bg-indigo-50/30' : ''">
 
                             <div class="flex justify-between items-start md:col-span-1">
                                 <input type="checkbox" value="{{ $p->id }}" x-model="selectedIds"
                                     class="rounded border-slate-300 text-indigo-600 w-5 h-5 md:w-4 md:h-4">
-                                <div class="md:hidden">
-                                    <form action="{{ route('admin.exams.remove-member', $p->id) }}" method="POST"
-                                        onsubmit="return confirm('Hapus peserta ini?')">
-                                        @csrf @method('DELETE')
-                                        <button class="p-2 text-slate-300 hover:text-rose-500"><svg class="w-5 h-5"
-                                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-width="2"
-                                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg></button>
-                                    </form>
-                                </div>
                             </div>
+
                             <div class="mt-2 md:mt-0 col-span-4">
                                 <p class="font-black text-slate-700 uppercase text-xs md:text-sm">{{ $p->user->name }}
                                 </p>
                                 <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
                                     {{ $p->dojo->name ?? 'N/A' }}</p>
                             </div>
+
                             <div class="flex items-center justify-between md:justify-center mt-4 md:mt-0 col-span-2">
-                                <span class="md:hidden text-[8px] font-black text-slate-300 uppercase">Target
-                                    Sabuk</span>
-                                <span
-                                    class="px-3 py-1 rounded text-[9px] font-black border {{ getBeltColor($p->targetBelt->name) }} uppercase shadow-sm">{{ $p->targetBelt->name }}</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span
+                                        class="px-2 py-0.5 rounded text-[8px] font-bold border {{ getBeltColor($p->currentBelt->name ?? 'Putih') }} uppercase opacity-70">
+                                        {{ $p->currentBelt->name ?? 'Putih' }}
+                                    </span>
+                                    <span class="text-slate-400 text-[10px]">→</span>
+                                    <span
+                                        class="px-2.5 py-1 rounded text-[9px] font-black border {{ getBeltColor($p->targetBelt->name) }} uppercase shadow-sm">
+                                        {{ $p->targetBelt->name }}
+                                    </span>
+                                </div>
                             </div>
+
                             <div class="flex items-center justify-between md:justify-center mt-2 md:mt-0 col-span-2">
-                                <span class="md:hidden text-[8px] font-black text-slate-300 uppercase">Status</span>
                                 <span
                                     class="px-3 py-1 text-[8px] font-black rounded-full {{ $p->payment_status === 'paid' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' }}">
                                     {{ $p->payment_status === 'paid' ? 'LUNAS' : 'PENDING' }}
                                 </span>
                             </div>
+
                             <div class="flex items-center justify-between md:justify-end mt-2 md:mt-0 col-span-2">
-                                <span class="md:hidden text-[8px] font-black text-slate-300 uppercase">Biaya</span>
                                 <span
                                     class="font-black text-slate-700 text-xs md:text-sm tracking-tighter">Rp{{ number_format($p->fee_amount, 0, ',', '.') }}</span>
                             </div>
+
                             <div class="hidden md:block col-span-1 text-center">
                                 <form action="{{ route('admin.exams.remove-member', $p->id) }}" method="POST"
                                     onsubmit="return confirm('Hapus peserta ini?')">
                                     @csrf @method('DELETE')
-                                    <button class="text-slate-300 hover:text-rose-500 transition-colors"><svg
-                                            class="w-4 h-4 mx-auto" fill="none" stroke="currentColor"
+                                    <button class="text-slate-300 hover:text-rose-500 transition-colors">
+                                        <svg class="w-4 h-4 mx-auto" fill="none" stroke="currentColor"
                                             viewBox="0 0 24 24">
                                             <path stroke-width="2"
                                                 d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg></button>
+                                        </svg>
+                                    </button>
                                 </form>
                             </div>
                         </div>
@@ -338,8 +340,8 @@
                 </div>
             </div>
 
-            {{-- TAB 2: REKAP DETAIL --}}
-            <div x-show="tab === 'rekap'" x-transition class="space-y-4">
+            {{-- TAB 2: REKAP DETAIL (Kembali ke kode asli Anda) --}}
+            <div x-show="tab === 'rekap'" x-transition class="space-y-4" x-cloak>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div class="bg-indigo-600 p-6 rounded-[2rem] text-white shadow-lg">
                         <span class="text-[9px] font-black uppercase opacity-60 tracking-widest">Estimasi Biaya</span>
@@ -412,13 +414,13 @@
                                                     Orang</span>
                                             </div>
                                             <div class="space-y-2">
+                                                @php $percent = $items->count() > 0 ? ($items->where('payment_status', 'paid')->count() / $items->count()) * 100 : 0; @endphp
                                                 <div
                                                     class="flex justify-between text-[9px] font-bold uppercase text-slate-400">
                                                     <span>Omzet</span>
                                                     <span
                                                         class="text-slate-700">Rp{{ number_format($items->sum('fee_amount'), 0, ',', '.') }}</span>
                                                 </div>
-                                                @php $percent = $items->count() > 0 ? ($items->where('payment_status', 'paid')->count() / $items->count()) * 100 : 0; @endphp
                                                 <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                                                     <div class="bg-emerald-500 h-full"
                                                         style="width: {{ $percent }}%"></div>
@@ -431,8 +433,7 @@
                                 </div>
                             </div>
                         @else
-                            {{-- Tampilan Dojo Saja --}}
-                            <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+                            <div class="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                                 <h3
                                     class="text-[10px] font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2">
                                     <span class="w-2 h-2 bg-orange-500 rounded-full"></span> Status Tagihan Anggota
@@ -445,18 +446,14 @@
                                                 <p class="text-[10px] font-black text-slate-700 uppercase">
                                                     {{ $p->user->name }}</p>
                                                 <p class="text-[8px] text-slate-400 uppercase font-bold">
-                                                    {{ $p->currentBelt->name ?? 'Putih' }} → <span
-                                                        class="text-indigo-600">{{ $p->targetBelt->name }}</span></p>
+                                                    {{ $p->currentBelt->name ?? 'Putih' }} →
+                                                    {{ $p->targetBelt->name }}</p>
                                             </div>
                                             <div class="text-right">
                                                 <p class="text-[10px] font-black text-slate-700">
                                                     Rp{{ number_format($p->fee_amount, 0, ',', '.') }}</p>
-                                                <div class="flex items-center gap-1 justify-end mt-1">
-                                                    <span
-                                                        class="w-1.5 h-1.5 rounded-full {{ $p->payment_status === 'paid' ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
-                                                    <span
-                                                        class="text-[7px] font-black uppercase {{ $p->payment_status === 'paid' ? 'text-emerald-600' : 'text-rose-600' }}">{{ $p->payment_status }}</span>
-                                                </div>
+                                                <span
+                                                    class="text-[7px] font-black uppercase {{ $p->payment_status === 'paid' ? 'text-emerald-600' : 'text-rose-600' }}">{{ $p->payment_status }}</span>
                                             </div>
                                         </div>
                                     @endforeach
@@ -473,16 +470,23 @@
         document.addEventListener('DOMContentLoaded', function() {
             new TomSelect('#user-select', {
                 plugins: ['remove_button'],
-                maxItems: 50,
-                persist: false,
-                create: false,
-                render: {
-                    optgroup_header: function(data, escape) {
-                        return '<div class="optgroup-header font-black text-[9px] uppercase tracking-widest bg-slate-100 p-2 text-slate-500">' +
-                            escape(data.label) + '</div>';
-                    }
-                }
+                maxOptions: null,
             });
         });
     </script>
+
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+
+        .ts-control {
+            border: none !important;
+            padding: 12px !important;
+            border-radius: 12px !important;
+            background: #f8fafc !important;
+            font-size: 12px !important;
+            font-weight: 700 !important;
+        }
+    </style>
 </x-app-layout>

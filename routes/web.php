@@ -9,7 +9,7 @@ use App\Http\Controllers\Admin\ProvinceController;
 use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\FeeConfigurationController;
 use App\Http\Controllers\Admin\ExamController;
-use App\Http\Controllers\Admin\ExamScoreController; // Tambahkan ini
+use App\Http\Controllers\Admin\ExamScoreController;
 use App\Http\Controllers\Admin\ExamExaminerController;
 use App\Http\Controllers\Member\MemberDashboardController;
 use Illuminate\Support\Facades\Route;
@@ -61,9 +61,10 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
         Route::delete('/exams/{exam}/bulk-remove', [ExamController::class, 'bulkRemoveMember'])->name('exams.bulk-remove-member');
 
         // --- MODUL PENILAIAN (Scoring) ---
-        // Rute ini dibuka untuk penguji dan admin agar bisa menginput nilai
-        Route::get('/exams/{exam}/scoring', [ExamScoreController::class, 'index'])->name('exams.scoring');
-        Route::post('/exams/{exam}/scoring', [ExamScoreController::class, 'store'])->name('exams.scoring.store');
+        // Menggunakan rute flat agar sinkron dengan pemanggilan route('admin.exams.scoring') di Blade
+        Route::get('exams/{exam}/scoring', [ExamScoreController::class, 'index'])->name('exams.scoring');
+        Route::post('exams/{exam}/scoring', [ExamScoreController::class, 'store'])->name('exams.scoring.store');
+        Route::post('exams/{exam}/scoring/finalize', [ExamScoreController::class, 'finalize'])->name('exams.scoring.finalize');
     });
 
     // 2. AKSES STRUKTURAL (PB, Pengprov, Pengcab)

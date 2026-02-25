@@ -126,4 +126,16 @@ class User extends Authenticatable
             ->where('status', 'SUCCESS')
             ->exists();
     }
+
+    // Relasi ke histori sabuk
+    public function beltHistories()
+    {
+        return $this->hasMany(BeltHistory::class);
+    }
+
+    // Helper untuk mengambil sabuk terbaru
+    public function currentBelt()
+    {
+        return $this->belongsTo(BeltLevel::class, 'current_belt_level_id');
+    }
 }

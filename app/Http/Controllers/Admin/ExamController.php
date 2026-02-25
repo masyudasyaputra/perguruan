@@ -331,4 +331,6 @@ class ExamController extends Controller
         ExamFee::findOrFail($id)->delete();
         return back()->with('success', 'Konfigurasi biaya dihapus.');
     }
+
+
 }
