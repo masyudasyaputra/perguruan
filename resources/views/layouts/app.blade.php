@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
 <head>
     <meta charset="utf-8">
@@ -8,180 +8,139 @@
 
     <title>{{ config('app.name', 'SHOKAIDO OS') }}</title>
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700,800&display=swap"
-        rel="stylesheet" />
+    {{-- Font: Inter (standar modern untuk UI sistem informasi) --}}
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
+        :root {
+            /* Pastikan Inter dipakai walau Tailwind belum extend */
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+            font-feature-settings: "ss01" 1, "ss02" 1, "cv01" 1, "cv02" 1, "cv03" 1;
+        }
+
         .gold-gradient-text {
             background: linear-gradient(to right, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        /* Menyesuaikan dengan gaya shokaido-nav-active di navigasi */
-        .shokaido-nav-active {
-            background: linear-gradient(135deg, #8b0000 0%, #5a0000 100%);
-            color: white !important;
-        }
-
-        .dark-pattern {
-            background-color: #050505;
-            background-image: radial-gradient(#1a1a1a 0.5px, transparent 0.5px);
+        .shokaido-light-bg {
+            background-color: #ffffff;
+            background-image: radial-gradient(#e5e7eb 0.5px, transparent 0.5px);
             background-size: 30px 30px;
         }
 
-        /* Scrollbar kustom agar senada dengan tema dark & gold */
+        /* Smooth Scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 5px;
         }
 
         ::-webkit-scrollbar-track {
-            background: #050505;
+            background: #f1f1f1;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #1a1a1a;
-            border-radius: 10px;
-            border: 2px solid #050505;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
             background: #bf953f;
+            border-radius: 10px;
         }
     </style>
 </head>
 
-<body class="font-sans antialiased text-slate-300 dark-pattern">
+<body class="font-sans antialiased text-slate-900 shokaido-light-bg">
     <div class="min-h-screen flex flex-col">
 
-        {{-- Navigation Bar (Sesuai dengan snippet yang Anda berikan) --}}
         @include('layouts.navigation')
 
         {{-- Header Section --}}
         @isset($header)
-            <header
-                class="bg-white/5 dark:bg-[#050505]/40 backdrop-blur-md border-b border-[#bf953f]/10 sticky top-[80px] z-40">
-                <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-                    <div class="flex items-center gap-5">
+            <header class="bg-white/90 backdrop-blur-md border-b border-[#bf953f]/20 shadow-sm transition-all duration-300">
+                <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+
+                        {{-- Sisi Kiri: Judul Halaman --}}
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div
+                                class="h-8 sm:h-10 w-1.5 bg-gradient-to-b from-red-600 to-black rounded-full shadow-sm flex-shrink-0">
+                            </div>
+
+                            <div class="flex flex-col min-w-0">
+                                {{-- Inter bagus tanpa tracking terlalu lebar; turunkan sedikit biar modern --}}
+                                <h1
+                                    class="text-lg sm:text-xl font-bold uppercase tracking-wide text-slate-900 leading-tight whitespace-normal break-words">
+                                    {{ $header }}
+                                </h1>
+                                <div
+                                    class="h-0.5 w-8 sm:w-12 bg-[#bf953f] mt-1 rounded-full shadow-sm shadow-yellow-500/20">
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Sisi Kanan: Mode Akses --}}
                         <div
-                            class="h-10 w-1.5 bg-gradient-to-b from-red-600 to-red-900 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.3)]">
+                            class="flex items-center justify-between sm:justify-end gap-3 bg-slate-50 border border-slate-200 py-2 sm:py-3 px-4 rounded-xl sm:rounded-2xl shadow-inner group hover:border-[#bf953f]/40 transition-all duration-300 shrink-0">
+                            <div class="flex items-center gap-3">
+                                <div class="relative flex h-2 w-2">
+                                    <span
+                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-600 opacity-20"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-600"></span>
+                                </div>
+                                <div class="flex flex-col">
+                                    <span
+                                        class="text-[7px] sm:text-[8px] font-extrabold uppercase tracking-[0.2em] text-slate-400 leading-none mb-0.5">
+                                        Sistem Otoritas
+                                    </span>
+                                    <span
+                                        class="text-[9px] sm:text-[10px] font-semibold text-slate-800 uppercase tracking-tight group-hover:text-red-700 transition-colors">
+                                        {{ str_replace('_', ' ', $role ?? Auth::user()->role) }} Mode
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="sm:hidden">
+                                <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
                         </div>
-                        <div class="flex flex-col">
-                            <h1 class="text-2xl font-black uppercase tracking-[0.1em] text-white">
-                                {{ $header }}
-                            </h1>
-                            <div class="h-0.5 w-12 bg-[#bf953f]/40 mt-1 rounded-full"></div>
-                        </div>
+
                     </div>
                 </div>
             </header>
         @endisset
 
         {{-- Main Content --}}
-        <main class="py-12 flex-grow">
+        <main class="py-4 sm:py-4 flex-grow bg-slate-50">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="animate-in fade-in slide-in-from-bottom-3 duration-700">
-                    {{ $slot }}
-                </div>
+                {{ $slot }}
             </div>
         </main>
 
-        {{-- Footer Section --}}
-        <footer class="bg-[#030303] border-t border-[#bf953f]/10 pt-20 pb-10 mt-20">
-            <div class="max-w-7xl mx-auto px-6 lg:px-8">
-                {{-- Grid Utama --}}
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-16 mb-20">
-
-                    {{-- Kolom 1: Branding --}}
-                    <div class="md:col-span-5 flex flex-col items-center md:items-start text-center md:text-left">
-                        <div class="flex items-center gap-4 mb-8">
-                            <img src="{{ asset('images/logo.png') }}" alt="Logo"
-                                class="h-14 w-auto brightness-110 drop-shadow-[0_0_8px_rgba(191,149,63,0.2)]">
-                            <div class="flex flex-col">
-                                <span class="font-black tracking-tighter text-2xl uppercase text-white leading-none">
-                                    SHOKAIDO<span class="gold-gradient-text">.OS</span>
-                                </span>
-                                <span
-                                    class="text-[9px] font-bold text-red-700 uppercase tracking-[0.25em] mt-1">Shotokan
-                                    Kandaga Indonesia</span>
-                            </div>
-                        </div>
-                        <p class="text-slate-400 text-sm leading-relaxed mb-8 max-w-sm">
-                            Sistem manajemen terpadu untuk pengelolaan Dojo secara profesional. Mengusung nilai <span
-                                class="text-slate-200 italic font-medium">Bushido</span> ke dalam ekosistem digital
-                            modern.
+        {{-- Footer --}}
+        <footer class="bg-slate-900 border-t-4 border-[#bf953f] pt-12 pb-8">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8 text-center sm:text-left">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div class="flex items-center gap-3">
+                        <img src="{{ asset('images/logo.png') }}" class="h-8 sm:h-10 w-auto">
+                        <span class="font-extrabold text-white tracking-tight text-lg sm:text-xl">
+                            SHOKAIDO<span class="gold-gradient-text">.OS</span>
+                        </span>
+                    </div>
+                    <div class="flex flex-col items-center md:items-end gap-2">
+                        <p class="text-[8px] sm:text-[10px] font-semibold text-slate-200 uppercase tracking-[0.3em]">
+                            &copy; {{ date('Y') }} Shotokan Kandaga Indonesia
                         </p>
-                    </div>
-
-                    {{-- Kolom 2: Navigasi --}}
-                    <div class="md:col-span-4 grid grid-cols-2 gap-8">
-                        <div>
-                            <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-[#bf953f] mb-8">
-                                Administrasi</h4>
-                            <ul class="space-y-4">
-                                <li><a href="{{ route('admin.dashboard') }}"
-                                        class="text-slate-500 hover:text-white text-[11px] font-bold uppercase tracking-wider transition-colors">Dashboard</a>
-                                </li>
-                                <li><a href="{{ route('admin.dojos.index') }}"
-                                        class="text-slate-500 hover:text-white text-[11px] font-bold uppercase tracking-wider transition-colors">Dojo
-                                        List</a></li>
-                                <li><a href="{{ route('admin.officials.index') }}"
-                                        class="text-slate-500 hover:text-white text-[11px] font-bold uppercase tracking-wider transition-colors">Database</a>
-                                </li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-[#bf953f] mb-8">Support
-                            </h4>
-                            <ul class="space-y-4">
-                                <li><a href="#"
-                                        class="text-slate-500 hover:text-white text-[11px] font-bold uppercase tracking-wider transition-colors">Help
-                                        Desk</a></li>
-                                <li><a href="#"
-                                        class="text-slate-500 hover:text-white text-[11px] font-bold uppercase tracking-wider transition-colors">PB
-                                        Shokaido</a></li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    {{-- Kolom 3: Status --}}
-                    <div class="md:col-span-3">
-                        <h4 class="text-[10px] font-black uppercase tracking-[0.3em] text-red-700 mb-8">System Status
-                        </h4>
-                        <div class="bg-white/[0.02] border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
-                            <div class="flex items-center gap-3 mb-4">
-                                <span class="relative flex h-2 w-2">
-                                    <span
-                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                                </span>
-                                <span class="text-[9px] font-black text-white uppercase tracking-widest">Server
-                                    Operational</span>
-                            </div>
-                            <p class="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">Version
-                                Control</p>
-                            <p class="text-xs font-black text-[#bf953f] italic tracking-tighter uppercase">v2.4.0-Stable
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Bottom Footer --}}
-                <div class="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <p class="text-[9px] font-bold text-slate-600 uppercase tracking-[0.3em]">
-                        &copy; {{ date('Y') }} <span class="text-slate-400">Shokaido</span> <span
-                            class="text-red-800 font-black">Operating System</span>.
-                    </p>
-                    <div class="flex gap-8">
-                        <a href="#"
-                            class="text-[9px] font-black uppercase text-slate-600 hover:text-[#bf953f] transition-colors tracking-widest">Privacy
-                            Policy</a>
-                        <a href="#"
-                            class="text-[9px] font-black uppercase text-slate-600 hover:text-[#bf953f] transition-colors tracking-widest">Terms
-                            of Service</a>
+                        <p class="text-[7px] font-semibold text-slate-500 uppercase tracking-widest">
+                            Built with Honor & Tradition
+                        </p>
                     </div>
                 </div>
             </div>

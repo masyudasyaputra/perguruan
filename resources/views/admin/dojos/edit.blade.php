@@ -1,30 +1,44 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Edit Data Dojo: ') }} <span class="text-indigo-600">{{ $dojo->name }}</span>
-        </h2>
+        <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <h2 class="font-black text-xl sm:text-3xl text-slate-900 leading-tight tracking-tighter uppercase">
+                    {{ __('Edit') }} <span class="text-slate-900">Dojo</span>
+                    <span class="text-red-600">•</span>
+                </h2>
+                <p class="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">
+                    Modifikasi Data: <span class="text-slate-600">{{ $dojo->name }}</span>
+                </p>
+            </div>
+
+            {{-- Chip mobile --}}
+            <div
+                class="sm:hidden shrink-0 inline-flex items-center gap-2 bg-slate-900 text-white px-3 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest">
+                <span class="w-2 h-2 rounded-full bg-red-600"></span>
+                EDIT
+            </div>
+        </div>
     </x-slot>
 
-    <div class="py-12">
-        <div class="max-w-4xl mx-auto sm:px-6 lg:px-8">
+    <div class="py-8 sm:py-10 bg-slate-50 min-h-screen">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
 
-            {{-- Pesan Error Validasi --}}
+            {{-- Pesan Error Validasi (merah hanya untuk error) --}}
             @if ($errors->any())
-                <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg shadow-sm">
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                                    clip-rule="evenodd" />
+                <div class="mb-6 sm:mb-8 p-4 sm:p-5 bg-white border-l-4 border-red-600 rounded-2xl shadow-sm">
+                    <div class="flex gap-3 sm:gap-4">
+                        <div class="bg-red-100 p-2 rounded-xl">
+                            <svg class="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="square" stroke-linejoin="square" stroke-width="3"
+                                    d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </div>
-                        <div class="ml-3">
-                            <h3 class="text-sm font-bold text-red-800 uppercase tracking-wider">Terjadi Kesalahan Input:
-                            </h3>
-                            <ul class="mt-1 list-disc list-inside text-sm text-red-700">
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-black text-red-800 uppercase tracking-widest">Validasi Gagal</h3>
+                            <ul
+                                class="mt-1 list-disc list-inside text-[11px] font-bold text-red-600/80 uppercase tracking-tight">
                                 @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
+                                    <li class="break-words">{{ $error }}</li>
                                 @endforeach
                             </ul>
                         </div>
@@ -32,108 +46,166 @@
                 </div>
             @endif
 
-            <div class="bg-white p-8 shadow-sm rounded-xl border-l-8 border-amber-500">
-                <form action="{{ route('admin.dojos.update', $dojo->id) }}" method="POST">
+            <div
+                class="bg-white rounded-[2rem] border-2 border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                {{-- Header Form --}}
+                <div class="bg-slate-900 px-5 sm:px-7 md:px-8 py-5">
+                    <div class="flex items-start sm:items-center justify-between gap-4">
+                        <div class="min-w-0">
+                            <h3 class="text-white text-[10px] sm:text-xs font-black uppercase tracking-[0.2em]">
+                                Formulir Pembaruan Data
+                            </h3>
+                            <p class="mt-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                Identitas • Legalitas • Lokasi
+                            </p>
+                        </div>
+
+                        <span
+                            class="inline-flex items-center gap-2 bg-white/5 border border-white/10 text-slate-200 px-3 sm:px-4 py-2 rounded-2xl text-[9px] font-black uppercase tracking-widest shrink-0">
+                            <span class="w-2 h-2 rounded-full bg-red-600"></span>
+                            ID: #{{ $dojo->id }}
+                        </span>
+                    </div>
+                </div>
+                <div class="h-1 bg-gradient-to-r from-slate-900 via-slate-700 to-red-600/60"></div>
+
+                <form action="{{ route('admin.dojos.update', $dojo->id) }}" method="POST"
+                    class="px-5 sm:px-7 md:px-8 pt-5 sm:pt-6 pb-6 sm:pb-8 space-y-6 sm:space-y-8">
                     @csrf
                     @method('PUT')
 
-                    {{-- Section 1: Informasi Dasar --}}
-                    <div class="mb-8">
-                        <h4 class="text-xs font-black uppercase tracking-widest text-indigo-600 mb-4 flex items-center">
-                            <span class="bg-indigo-100 p-1 rounded-md mr-2">01</span>
-                            Perbarui Identitas Dojo
-                        </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {{-- Section 1: Informasi Utama --}}
+                    <section class="rounded-[1.5rem] border-2 border-slate-100 bg-white p-4 sm:p-6">
+                        <div class="flex items-center justify-between mb-4 sm:mb-5">
+                            <h4
+                                class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-900 flex items-center gap-3">
+                                <span
+                                    class="w-8 h-8 bg-slate-100 flex items-center justify-center rounded-xl border-2 border-slate-200">
+                                    01
+                                </span>
+                                Identitas Utama Dojo
+                            </h4>
+                            <span
+                                class="hidden sm:inline-flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span> Master Data
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
                             <div class="md:col-span-2">
-                                <label class="block text-sm font-bold text-gray-700 uppercase tracking-tight">Nama
-                                    Dojo</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Nama Dojo <span class="text-red-600">*</span>
+                                </label>
                                 <input type="text" name="name" value="{{ old('name', $dojo->name) }}"
-                                    class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-0 focus:border-slate-900 transition-all uppercase"
                                     required>
                             </div>
 
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 uppercase tracking-tight">Nama
-                                    Sensei (Kepala)</label>
+                            <div class="md:col-span-2">
+                                <label
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Nama Sensei / Pelatih
+                                </label>
                                 <input type="text" name="sensei_name"
                                     value="{{ old('sensei_name', $dojo->sensei_name) }}"
-                                    class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-bold text-gray-700 uppercase tracking-tight">Nomor
-                                    Telepon</label>
-                                <input type="text" name="phone_number"
-                                    value="{{ old('phone_number', $dojo->phone_number) }}"
-                                    class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                    class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-0 focus:border-slate-900 transition-all uppercase">
                             </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <hr class="mb-8 border-gray-100">
+                    {{-- Section 2: Legalitas --}}
+                    <section class="rounded-[1.5rem] border-2 border-slate-100 bg-slate-50 p-4 sm:p-6">
+                        <div class="flex items-center justify-between mb-4 sm:mb-5">
+                            <h4
+                                class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-900 flex items-center gap-3">
+                                <span
+                                    class="w-8 h-8 bg-white flex items-center justify-center rounded-xl border-2 border-slate-200 shadow-sm">
+                                    02
+                                </span>
+                                Legalitas & Masa Berlaku SK
+                            </h4>
+                            <span
+                                class="hidden sm:inline-flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span> Dokumen
+                            </span>
+                        </div>
 
-                    {{-- Section 2: Legalitas SK --}}
-                    <div class="mb-8 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
-                        <h4 class="text-xs font-black uppercase tracking-widest text-amber-700 mb-4 flex items-center">
-                            <span class="bg-amber-200 p-1 rounded-md mr-2">02</span>
-                            Legalitas SK (Status: {!! $dojo->is_active
-                                ? '<span class="text-green-600 font-bold">Aktif</span>'
-                                : '<span class="text-red-600 font-bold">Expired</span>' !!})
-                        </h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
                             <div>
-                                <label class="block text-sm font-bold text-gray-700 uppercase tracking-tight">Nomor SK
-                                    Dojo</label>
+                                <label
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Nomor SK Resmi
+                                </label>
                                 <input type="text" name="sk_number" value="{{ old('sk_number', $dojo->sk_number) }}"
-                                    class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500">
+                                    class="w-full bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-0 focus:border-slate-900 transition-all uppercase">
                             </div>
 
                             <div>
                                 <label
-                                    class="block text-sm font-bold text-gray-700 uppercase tracking-tight text-red-600">Tanggal
-                                    Berakhir SK</label>
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Tanggal Berakhir SK <span class="text-red-600">*</span>
+                                </label>
                                 <input type="date" name="sk_expiry_date"
                                     value="{{ old('sk_expiry_date', $dojo->sk_expiry_date) }}"
-                                    class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500"
+                                    class="w-full bg-white border-2 border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-0 focus:border-slate-900 transition-all"
                                     required>
                             </div>
                         </div>
-                    </div>
+
+                        <p class="mt-3 text-[10px] text-slate-500 italic">
+                            * Dojo otomatis non-aktif jika melewati tanggal ini.
+                        </p>
+                    </section>
 
                     {{-- Section 3: Wilayah --}}
-                    <div class="mb-8">
-                        <h4 class="text-xs font-black uppercase tracking-widest text-indigo-600 mb-4 flex items-center">
-                            <span class="bg-indigo-100 p-1 rounded-md mr-2">03</span>
-                            Wilayah & Lokasi Latihan
-                        </h4>
+                    <section class="rounded-[1.5rem] border-2 border-slate-100 bg-white p-4 sm:p-6">
+                        <div class="flex items-center justify-between mb-4 sm:mb-5">
+                            <h4
+                                class="text-[10px] font-black uppercase tracking-[0.15em] text-slate-900 flex items-center gap-3">
+                                <span
+                                    class="w-8 h-8 bg-slate-100 flex items-center justify-center rounded-xl border-2 border-slate-200">
+                                    03
+                                </span>
+                                Lokasi & Wilayah
+                            </h4>
+                            <span
+                                class="hidden sm:inline-flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-400">
+                                <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span> Lokasi
+                            </span>
+                        </div>
 
                         @if (auth()->user()->role === 'pengcab')
-                            {{-- PENGPCAB: Wilayah Terkunci --}}
                             <input type="hidden" name="province_id"
                                 value="{{ $dojo->province_id ?? auth()->user()->province_id }}">
                             <input type="hidden" name="city_id"
                                 value="{{ $dojo->city_id ?? auth()->user()->city_id }}">
 
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                    <span class="text-[10px] font-bold text-gray-400 uppercase">Provinsi</span>
-                                    <p class="text-sm font-bold text-gray-600">
-                                        {{ $dojo->province->name ?? auth()->user()->province->name }}</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+                                <div class="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
+                                    <span
+                                        class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Provinsi</span>
+                                    <p class="text-xs font-black text-slate-700 uppercase mt-1">
+                                        {{ $dojo->province->name ?? auth()->user()->province->name }}
+                                    </p>
                                 </div>
-                                <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                                    <span class="text-[10px] font-bold text-gray-400 uppercase">Kota/Cabang</span>
-                                    <p class="text-sm font-bold text-gray-600">
-                                        {{ $dojo->city->name ?? auth()->user()->city->name }}</p>
+                                <div class="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
+                                    <span
+                                        class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Kota/Cabang</span>
+                                    <p class="text-xs font-black text-slate-700 uppercase mt-1">
+                                        {{ $dojo->city->name ?? auth()->user()->city->name }}
+                                    </p>
                                 </div>
                             </div>
                         @else
-                            {{-- PB/ADMIN: Bisa Ubah Wilayah --}}
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 md:gap-6 mb-4">
                                 <div>
                                     <label
-                                        class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Provinsi</label>
+                                        class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                        Provinsi
+                                    </label>
                                     <select id="province_id" name="province_id"
-                                        class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:ring-indigo-500">
+                                        class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-0 focus:border-slate-900 transition-all uppercase">
                                         @foreach ($provinces as $p)
                                             <option value="{{ $p->id }}"
                                                 {{ old('province_id', $dojo->province_id) == $p->id ? 'selected' : '' }}>
@@ -144,10 +216,12 @@
                                 </div>
 
                                 <div>
-                                    <label class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Kota /
-                                        Cabang</label>
+                                    <label
+                                        class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                        Kota / Cabang
+                                    </label>
                                     <select name="city_id" id="city_id"
-                                        class="w-full mt-1 border-gray-300 rounded-lg text-sm focus:ring-indigo-500"
+                                        class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-0 focus:border-slate-900 transition-all uppercase"
                                         required>
                                         @foreach ($cities as $c)
                                             <option value="{{ $c->id }}"
@@ -160,22 +234,39 @@
                             </div>
                         @endif
 
-                        <div class="mt-4">
-                            <label class="text-xs font-bold text-gray-500 uppercase tracking-tighter">Alamat Lengkap
-                                Latihan</label>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                Alamat Lengkap Latihan <span class="text-red-600">*</span>
+                            </label>
                             <textarea name="address" rows="3"
-                                class="w-full mt-1 border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500" required>{{ old('address', $dojo->address) }}</textarea>
+                                class="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl py-3 px-4 text-sm font-bold focus:ring-0 focus:border-slate-900 transition-all"
+                                required>{{ old('address', $dojo->address) }}</textarea>
+                        </div>
+                    </section>
+
+                    {{-- Mobile sticky actions --}}
+                    <div
+                        class="sm:hidden -mx-5 px-5 pt-4 pb-5 sticky bottom-0 bg-slate-50/95 backdrop-blur border-t border-slate-100">
+                        <div class="grid grid-cols-2 gap-3">
+                            <a href="{{ route('admin.dojos.index') }}"
+                                class="inline-flex justify-center items-center bg-white border-2 border-slate-200 text-slate-500 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
+                                Batal
+                            </a>
+                            <button type="submit"
+                                class="inline-flex justify-center items-center bg-slate-900 text-white py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600 transition-all border-b-4 border-slate-700 hover:border-red-800 active:translate-y-1">
+                                Simpan
+                            </button>
                         </div>
                     </div>
 
-                    {{-- Action Buttons --}}
-                    <div class="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    {{-- Desktop actions --}}
+                    <div class="hidden sm:flex justify-end gap-3 pt-6 border-t-2 border-slate-50">
                         <a href="{{ route('admin.dojos.index') }}"
-                            class="bg-white border border-gray-300 text-gray-600 px-6 py-2 rounded-lg font-bold text-sm hover:bg-gray-50 transition">
+                            class="inline-flex justify-center items-center bg-white border-2 border-slate-200 text-slate-500 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
                             Batal
                         </a>
                         <button type="submit"
-                            class="bg-amber-500 hover:bg-amber-600 text-white px-10 py-2 rounded-lg font-black text-sm shadow-lg shadow-amber-200 transition-all uppercase tracking-widest">
+                            class="inline-flex justify-center items-center bg-slate-900 text-white px-10 py-3 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600 shadow-lg shadow-slate-200 transition-all border-b-4 border-slate-700 hover:border-red-800 active:translate-y-1">
                             Simpan Perubahan
                         </button>
                     </div>
@@ -198,6 +289,9 @@
                         data.forEach(city => {
                             citySelect.innerHTML += `<option value="${city.id}">${city.name}</option>`;
                         });
+                    })
+                    .catch(() => {
+                        citySelect.innerHTML = '<option value="">Gagal memuat data</option>';
                     });
             });
         </script>

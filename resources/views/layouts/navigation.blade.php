@@ -25,7 +25,7 @@
 </style>
 
 <nav x-data="{ open: false }"
-    class="bg-white/95 dark:bg-[#050505]/95 backdrop-blur-xl sticky top-0 z-50 border-b border-[#bf953f]/20 shadow-lg shadow-red-900/5">
+    class="bg-slate-900 text-white backdrop-blur-xl sticky top-0 z-50 border-b border-[#bf953f]/20 shadow-lg shadow-red-900/5">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-20">
             <div class="flex">
@@ -34,14 +34,18 @@
                     <a href="{{ $isAdmin ? route('admin.dashboard') : route('dashboard') }}"
                         class="flex items-center gap-3 group transition-transform active:scale-95">
                         <img src="{{ asset('images/logo.png') }}" alt="Logo"
-                            class="h-12 w-auto drop-shadow-sm group-hover:drop-shadow-md transition-all">
-                        <div class="hidden md:flex flex-col">
+                            class="h-10 sm:h-12 w-auto drop-shadow-sm group-hover:drop-shadow-md transition-all">
+
+                        {{-- Perbaikan: Menghapus 'hidden md:flex' agar teks logo muncul di mobile --}}
+                        <div class="flex flex-col min-w-0">
                             <span
-                                class="font-black tracking-tighter text-lg leading-none text-slate-900 dark:text-white uppercase">SHOKAIDO<span
-                                    class="gold-gradient-text">.OS</span></span>
+                                class="font-black tracking-tighter text-sm sm:text-lg leading-none text-white uppercase italic">
+                                SHOKAIDO<span class="gold-gradient-text">.OS</span>
+                            </span>
                             <span
-                                class="text-[8px] font-bold text-red-700 uppercase tracking-[0.2em] leading-tight">Shotokan
-                                Kandaga Indonesia</span>
+                                class="text-[6px] sm:text-[8px] font-bold text-red-600 uppercase tracking-[0.1em] sm:tracking-[0.2em] leading-tight mt-0.5">
+                                Shotokan Kandaga Indonesia
+                            </span>
                         </div>
                     </a>
                 </div>
