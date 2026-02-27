@@ -74,8 +74,10 @@
         gridCols: 'xl:grid-cols-4',
         gridMobile: 'grid-cols-1',
         showModal: false,
-        openResume() { window.updateResume();
-            this.showModal = true; }
+        openResume() {
+            window.updateResume();
+            this.showModal = true;
+        }
     }">
 
         <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-3">
@@ -201,7 +203,7 @@
                         <div data-id="{{ $p->id }}" data-user-id="{{ $targetUserId }}"
                             data-name="{{ $p->user->name }}" x-data="participantCard('{{ $targetUserId }}', '{{ $score->result ?? 'Lulus' }}', '{{ $score->examiner_name ?? '' }}')"
                             x-show="selectedBelts.length === 0 || selectedBelts.includes('{{ $currentBelt->name ?? 'Putih' }}')"
-                            class="participant-card relative bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden group {{ $canScore ? 'cursor-move' : '' }}">
+                            class="participant-card relative bg-white rounded-[1rem] border border-slate-200 shadow-sm overflow-hidden group {{ $canScore ? 'cursor-move' : '' }}">
 
                             {{-- handle icon --}}
                             <div

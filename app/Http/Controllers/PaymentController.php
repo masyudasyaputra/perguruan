@@ -3,71 +3,96 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
+use App\Services\Payment\PaymentService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class PaymentController extends Controller
 {
-    /**
-     * Membuat Request ke DOKU Checkout
-     */
-    public function createDokuCheckout(Payment $payment)
+    // Contoh: buat payment iuran
+    public function createMembership(Request $request, PaymentService $svc)
     {
-        $user = $payment->user;
-        $requestId = (string) Str::uuid();
-        $timestamp = Carbon::now()->utc()->format('Y-m-d\TH:i:s\Z');
-        
-        // Payload sesuai dokumentasi DOKU Jokul
-        $body = [
-            'order' => [
-                'amount' => $payment->amount,
-                'invoice_number' => $payment->external_id,
-                'callback_url' => route('dashboard'), // Ke mana user balik setelah bayar
-                'auto_redirect' => true,
-            ],
-            'customer' => [
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-        ];
+        $request->validate([
+            'amount' => ['required', 'integer', 'min:1000'],
+            'belt_level_id' => ['nullable', 'integer'],
+            'period' => ['nullable', 'string'], // contoh: 2026-02
+        ]);
 
-        // 1. Generate Signature (DOKU memerlukan signature HMAC-SHA256)
-        $signature = $this->generateSignature($body, $requestId, $timestamp);
+        $payment = $svc->createMembershipPayment(
+            userId: Auth::id(),
+            amount: (int) $request->amount,
+            beltLevelId: $request->belt_level_id ? (int) $request->belt_level_id : null,
+            meta: [
+                'period' => $request->period,
+            ]
+        );
 
-        // 2. Kirim Request ke DOKU
-        $response = Http::withHeaders([
-            'Client-Id' => env('DOKU_CLIENT_ID'),
-            'Request-Id' => $requestId,
-            'Request-Timestamp' => $timestamp,
-            'Signature' => "HMACSHA256=$signature",
-        ])->post(env('DOKU_API_URL') . '/checkout/v1/payment', $body);
+        // TODO: panggil DOKU create transaction, simpan payment_url + doku_transaction_id
+        // return redirect($payment->payment_url);
 
-        if ($response->successful()) {
-            $data = $response->json();
-            // Redirect user ke halaman pembayaran DOKU
-            return redirect($data['response']['payment']['url']);
-        }
-
-        return back()->with('error', 'Gagal menghubungkan ke layanan pembayaran.');
+        return response()->json([
+            'message' => 'payment created',
+            'payment' => $payment,
+        ]);
     }
 
-    /**
-     * Logic Signature DOKU
-     */
-    private function generateSignature($body, $requestId, $timestamp)
+    // Contoh: buat payment ujian
+    public function createExam(Request $request, PaymentService $svc)
     {
-        $clientId = env('DOKU_CLIENT_ID');
-        $secretKey = env('DOKU_SECRET_KEY');
-        $digest = base64_encode(hash('sha256', json_encode($body), true));
-        
-        $rawSignature = "Client-Id:$clientId\n" .
-                        "Request-Id:$requestId\n" .
-                        "Request-Timestamp:$timestamp\n" .
-                        "Request-Target:/checkout/v1/payment\n" .
-                        "Digest:$digest";
+        $request->validate([
+            'amount' => ['required', 'integer', 'min:1000'],
+            'exam_id' => ['required', 'integer'],
+            'belt_level_id' => ['nullable', 'integer'],
+        ]);
 
-        return base64_encode(hash_hmac('sha256', $rawSignature, $secretKey, true));
+        $payment = $svc->createExamPayment(
+            userId: Auth::id(),
+            amount: (int) $request->amount,
+            beltLevelId: $request->belt_level_id ? (int) $request->belt_level_id : null,
+            meta: [
+                'exam_id' => (int) $request->exam_id,
+            ]
+        );
+
+        // TODO: panggil DOKU create transaction
+        return response()->json([
+            'message' => 'exam payment created',
+            'payment' => $payment,
+        ]);
+    }
+
+    // Return URL dari DOKU (jangan jadikan sumber kebenaran paid)
+    public function return(Request $request)
+    {
+        return view('payments.return', [
+            'query' => $request->all(),
+        ]);
+    }
+
+    // Webhook notify dari DOKU (ini yang finalisasi)
+    public function dokuNotify(Request $request)
+    {
+        // TODO: verifikasi signature DOKU
+        // Ambil invoice_number dari payload DOKU
+        $invoice = data_get($request->all(), 'order.invoice_number')
+            ?? data_get($request->all(), 'invoice_number');
+
+        if (!$invoice)
+            return response()->json(['message' => 'missing invoice'], 400);
+
+        $payment = Payment::where('invoice_number', $invoice)->first();
+        if (!$payment)
+            return response()->json(['message' => 'payment not found'], 404);
+
+        // Simpan payload webhook
+        $payment->update([
+            'callback_payload' => $request->all(),
+        ]);
+
+        // TODO: mapping status DOKU → paid/failed/expired
+        // Jika paid:
+        // $payment->update(['status'=>'paid','paid_at'=>now()]);
+
+        return response()->json(['message' => 'ok']);
     }
 }
