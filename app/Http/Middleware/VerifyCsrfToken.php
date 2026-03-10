@@ -13,5 +13,7 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         'payments/doku/notify',
+        // optional kalau kamu pakai prefix admin atau variasi:
+        // 'payments/doku/*',
     ];
 }

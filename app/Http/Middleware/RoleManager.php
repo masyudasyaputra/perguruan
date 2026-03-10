@@ -9,28 +9,93 @@ use Symfony\Component\HttpFoundation\Response;
 class RoleManager
 {
     /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * Usage:
+     *   ->middleware('role:pb,pengprov,pengcab,admin_dojo,penguji,admin_pengprov,admin_pengcab')
      */
     public function handle(Request $request, Closure $next, ...$roles): Response
     {
-        if (!$request->user()) {
-            return redirect()->route('login');
+        $user = $request->user();
+
+        // Biarkan auth middleware yang handle redirect login
+        if (!$user) {
+            return redirect()->guest(route('login'));
         }
 
-        $userRole = $request->user()->role;
-
-        // Jika role user diizinkan, lanjut!
-        if (in_array($userRole, $roles)) {
+        // Jika middleware dipanggil tanpa parameter role -> anggap lolos
+        if (empty($roles)) {
             return $next($request);
         }
 
-        // Jika tidak diizinkan, arahkan ke dashboard yang sesuai (bukan ke route asal)
-        if (in_array($userRole, ['pb', 'pengprov', 'pengcab', 'admin_dojo', 'penguji'])) {
-            return redirect()->route('admin.dashboard');
+        // Allowed roles dari parameter middleware
+        $allowed = collect($roles)
+            ->flatMap(fn($r) => explode(',', (string) $r))
+            ->map(fn($r) => strtolower(trim((string) $r)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        // Owned roles: primary role + roles tambahan (json/array/string)
+        $owned = $this->getOwnedRoles($user);
+
+        // Lolos jika ada irisan
+        if (count(array_intersect($allowed, $owned)) > 0) {
+            return $next($request);
         }
 
-        return redirect()->route('dashboard');
+        // Jangan redirect di middleware role (rawan loop).
+        abort(403, 'AKSES DITOLAK.');
+    }
+
+    /**
+     * Ambil semua role yang dimiliki user (primary + tambahan)
+     */
+    protected function getOwnedRoles($user): array
+    {
+        $extra = [];
+
+        if (is_array($user->roles)) {
+            $extra = $user->roles;
+        } elseif (is_string($user->roles) && trim($user->roles) !== '') {
+            $decoded = json_decode($user->roles, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $extra = $decoded;
+            } else {
+                // fallback kalau ternyata "a,b,c"
+                $extra = explode(',', $user->roles);
+            }
+        }
+
+        return collect(array_merge([(string) $user->role], $extra))
+            ->map(fn($r) => strtolower(trim((string) $r)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Kalau suatu saat perlu dipakai untuk menentukan akses tertinggi:
+     * pb > pengprov/admin_pengprov > pengcab/admin_pengcab > admin_dojo > penguji > member
+     */
+    public static function highestRole(array $owned): string
+    {
+        $priority = [
+            'pb',
+            'pengprov',
+            'admin_pengprov',
+            'pengcab',
+            'admin_pengcab',
+            'admin_dojo',
+            'penguji',
+            'member',
+        ];
+
+        foreach ($priority as $r) {
+            if (in_array($r, $owned, true))
+                return $r;
+        }
+
+        return $owned[0] ?? 'member';
     }
 }

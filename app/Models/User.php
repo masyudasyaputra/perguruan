@@ -123,7 +123,7 @@ class User extends Authenticatable
     {
         return $this->payments()
             ->where('belt_level_id', $this->belt_level_id)
-            ->where('status', 'SUCCESS')
+            ->where('status', 'paid') // ✅ samakan dengan enum kamu
             ->exists();
     }
 

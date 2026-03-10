@@ -4,7 +4,6 @@
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
-    {{-- Header mengikuti style admin (dark slate + red accent) --}}
     <x-slot name="header">
         <div class="flex items-center justify-between gap-3">
             <div class="min-w-0">
@@ -13,14 +12,14 @@
                     <span class="text-red-600">•</span>
                 </h2>
                 <p class="text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-0.5">
-                    Dojo: <span class="text-slate-600">{{ auth()->user()->dojo->name ?? 'DOJO' }}</span>
+                    Dojo:
+                    <span class="text-slate-600">{{ auth()->user()->dojo->name ?? 'DOJO' }}</span>
                 </p>
             </div>
-
         </div>
     </x-slot>
 
-    {{-- Floating Action Button (mobile) like dojo/pengurus index --}}
+    {{-- Floating Action Button (mobile) --}}
     <div class="fixed bottom-6 right-6 z-50 md:hidden" x-data>
         <button type="button" @click="$dispatch('add-member')"
             class="flex items-center justify-center w-14 h-14 bg-red-600 text-white rounded-2xl shadow-[0_10px_25px_rgba(220,38,38,0.4)] active:scale-90 transition-transform border-b-4 border-red-800">
@@ -34,6 +33,16 @@
         members: [],
         showPass: false,
         rawDojoName: '{{ auth()->user()->dojo->name ?? 'DOJO' }}',
+    
+        // ✅ Lokasi/organisasi sudah “mengikat” dari akun login:
+        // - non-PB: langsung pakai dari user/dojo
+        // - PB: boleh pilih province (opsional), tapi default tetap dari akun bila ada
+        province_id: '{{ $role === 'pb'
+            ? old('province_id') ?? (auth()->user()->province_id ?? (auth()->user()->dojo->province_id ?? ''))
+            : auth()->user()->province_id ?? (auth()->user()->dojo->province_id ?? '') }}',
+    
+        city_id: '{{ auth()->user()->city_id ?? '' }}',
+        dojo_id: '{{ auth()->user()->dojo_id ?? '' }}',
     
         get defaultPass() {
             let nameParts = (this.rawDojoName || 'DOJO').trim().split(' ');
@@ -55,11 +64,11 @@
             }
     
             try {
-                let response = await fetch(`/api/check-whatsapp?number=${wa}`);
+                let response = await fetch(`/api/check-whatsapp?number=${encodeURIComponent(wa)}`);
                 let data = await response.json();
                 this.members[index].errorWa = data.exists ? 'Nomor sudah terdaftar di sistem' : '';
             } catch (e) {
-                console.error('WA check failed');
+                console.error('WA check failed', e);
             }
         },
     
@@ -96,16 +105,18 @@
                 localStorage.setItem('dojo_collective_2026', JSON.stringify(val));
             }, { deep: true });
     
-            this.$nextTick(() => window.initBeltSelects && window.initBeltSelects());
+            this.$nextTick(() => {
+                window.initBeltSelects && window.initBeltSelects();
+                window.initProvinceSelect && window.initProvinceSelect();
+            });
     
-            // listen FAB event
             this.$root.addEventListener('add-member', () => this.addMember());
         }
     }">
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-            {{-- INFO LOGIN SECTION (dark slate + red accent) --}}
+            {{-- INFO LOGIN SECTION --}}
             <div
                 class="mb-6 bg-white rounded-[2rem] border-2 border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
                 <button type="button"
@@ -154,9 +165,93 @@
                 </div>
             </div>
 
-            <form action="{{ route('admin.members.review') }}" method="POST"
-                @submit="localStorage.removeItem('dojo_collective_2026')">
+            {{-- ✅ FORM: submit ke REVIEW --}}
+            <form action="{{ route('admin.members.review') }}" method="POST">
                 @csrf
+
+                {{-- ✅ Lokasi/Organisasi “terkunci” dari akun login (supaya tidak pilih-pilih lagi) --}}
+                <div
+                    class="mb-6 bg-white rounded-[2rem] border-2 border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
+                    <div class="px-5 sm:px-7 py-5 bg-slate-900">
+                        <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300">
+                            Lokasi & Organisasi
+                        </p>
+                        <p class="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-200">
+                            Mengikuti akun yang sedang login
+                        </p>
+                    </div>
+
+                    <div class="px-5 sm:px-7 py-5 bg-white border-t-2 border-slate-100">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                            {{-- PROVINSI --}}
+                            <div class="md:col-span-4">
+                                <label
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Provinsi
+                                </label>
+
+                                @if ($role === 'pb')
+                                    {{-- PB boleh pilih provinsi --}}
+                                    <select class="province-select w-full" name="province_id" x-model="province_id"
+                                        x-init="$nextTick(() => window.initProvinceSelect && window.initProvinceSelect())" required>
+                                        <option value="">PILIH</option>
+                                        @foreach ($provinces as $p)
+                                            <option value="{{ $p->id }}">{{ strtoupper($p->name) }}</option>
+                                        @endforeach
+                                    </select>
+                                    <p class="mt-1 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                                        * PB dapat memilih provinsi untuk penetapan fee.
+                                    </p>
+                                @else
+                                    {{-- Non-PB: terkunci --}}
+                                    <input type="hidden" name="province_id" x-bind:value="province_id">
+                                    <div class="bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3">
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-800">
+                                            {{ auth()->user()->province->name ?? (auth()->user()->dojo->province->name ?? 'PROVINSI') }}
+                                        </p>
+                                        <p class="text-[10px] font-bold text-slate-500 mt-1">
+                                            Terkunci dari akun.
+                                        </p>
+                                    </div>
+                                @endif
+                            </div>
+
+                            {{-- KAB/KOTA --}}
+                            <div class="md:col-span-4">
+                                <label
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Kab/Kota
+                                </label>
+                                <input type="hidden" name="city_id" x-bind:value="city_id">
+                                <div class="bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-widest text-slate-800">
+                                        {{ auth()->user()->city->name ?? 'KAB/KOTA' }}
+                                    </p>
+                                    <p class="text-[10px] font-bold text-slate-500 mt-1">
+                                        Terkunci dari akun.
+                                    </p>
+                                </div>
+                            </div>
+
+                            {{-- DOJO --}}
+                            <div class="md:col-span-4">
+                                <label
+                                    class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Dojo
+                                </label>
+                                <input type="hidden" name="dojo_id" x-bind:value="dojo_id">
+                                <div class="bg-slate-50 border-2 border-slate-100 rounded-2xl px-4 py-3">
+                                    <p class="text-[10px] font-black uppercase tracking-widest text-slate-800">
+                                        {{ auth()->user()->dojo->name ?? 'DOJO' }}
+                                    </p>
+                                    <p class="text-[10px] font-bold text-slate-500 mt-1">
+                                        Terkunci dari akun.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 {{-- Toolbar --}}
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-5 gap-3">
@@ -169,14 +264,12 @@
                         </p>
                     </div>
 
-                    {{-- mobile hint only --}}
                     <div
                         class="md:hidden inline-flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-slate-500">
                         <span class="w-2 h-2 rounded-full bg-red-600"></span>
                         tambah murid via tombol +
                     </div>
 
-                    {{-- Desktop add button --}}
                     <button type="button" @click="addMember()"
                         class="hidden md:inline-flex items-center bg-slate-900 hover:bg-red-600 text-white px-5 py-3 rounded-xl text-[10px] font-black transition-all duration-300 hover:-translate-y-1 shadow-lg shadow-slate-200 uppercase tracking-[0.15em] border-b-4 border-slate-700 hover:border-red-800 active:translate-y-0">
                         <svg class="w-4 h-4 me-2 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -191,6 +284,7 @@
                         <div
                             class="relative bg-white rounded-[2rem] border-2 border-slate-100 shadow-xl shadow-slate-200/50 overflow-hidden">
 
+                            {{-- password tidak dipakai server, tapi dibiarkan --}}
                             <input type="hidden" :name="'members[' + index + '][password]'" :value="defaultPass">
 
                             <button type="button" x-show="members.length > 1" @click="removeMember(member.id)"
@@ -221,7 +315,8 @@
                                     <span class="w-2 h-2 rounded-full"
                                         :class="member.errorWa ? 'bg-rose-500' : (member.whatsapp ? 'bg-emerald-500' :
                                             'bg-slate-500')"></span>
-                                    <span x-text="member.errorWa ? 'ERROR' : (member.whatsapp ? 'OK' : 'DRAFT')"></span>
+                                    <span
+                                        x-text="member.errorWa ? 'ERROR' : (member.whatsapp ? 'OK' : 'DRAFT')"></span>
                                 </span>
                             </div>
 
@@ -306,9 +401,7 @@
                                         <div wire:ignore>
                                             <select class="belt-select w-full" :id="'belt_select_' + member.id"
                                                 :name="'members[' + index + '][belt_level_id]'"
-                                                x-init="$nextTick(() => {
-                                                    if (window.initOneBeltSelect) window.initOneBeltSelect($el, member, members);
-                                                })" required>
+                                                x-init="$nextTick(() => { if (window.initOneBeltSelect) window.initOneBeltSelect($el, member, members); })" required>
                                                 <option value=""></option>
                                                 @foreach ($beltLevels as $belt)
                                                     <option value="{{ $belt->id }}">
@@ -380,9 +473,9 @@
 
                                 <button type="submit"
                                     :disabled="members.some(m => !m.name || !m.parent_name || !m.belt_level_id || m.errorWa || !m
-                                        .whatsapp)"
+                                        .whatsapp) || (!province_id)"
                                     class="w-full sm:w-auto inline-flex items-center justify-center bg-red-600 hover:bg-red-500 text-white px-10 py-4 rounded-2xl font-black uppercase tracking-[0.2em] transition-all shadow-xl border-b-4 border-red-800 active:translate-y-1 disabled:opacity-25 disabled:grayscale disabled:cursor-not-allowed">
-                                    Lanjut Ke Pembayaran
+                                    Lanjut Ke Review
                                 </button>
                             </div>
                         </div>
@@ -454,7 +547,6 @@
         // init per-element (lebih aman untuk dynamic rows)
         window.initOneBeltSelect = (el, member, membersRef) => {
             if (!window.jQuery) return;
-
             const $el = window.jQuery(el);
 
             if ($el.hasClass('select2-hidden-accessible')) {
@@ -468,11 +560,8 @@
                 dropdownCssClass: 'custom-dropdown'
             });
 
-            if (member.belt_level_id) {
-                $el.val(member.belt_level_id).trigger('change.select2');
-            } else {
-                $el.val(null).trigger('change.select2');
-            }
+            if (member.belt_level_id) $el.val(member.belt_level_id).trigger('change.select2');
+            else $el.val(null).trigger('change.select2');
 
             $el.on('change.select2sync', (e) => {
                 member.belt_level_id = e.target.value;
@@ -489,6 +578,21 @@
                         dropdownCssClass: 'custom-dropdown'
                     });
                 }
+            });
+        };
+
+        // ✅ select2 untuk provinsi (khusus PB)
+        window.initProvinceSelect = () => {
+            const el = document.querySelector('select.province-select');
+            if (!el || !window.jQuery) return;
+
+            const $el = window.jQuery(el);
+            if ($el.hasClass('select2-hidden-accessible')) return;
+
+            $el.select2({
+                width: '100%',
+                placeholder: 'PILIH',
+                dropdownCssClass: 'custom-dropdown'
             });
         };
     </script>

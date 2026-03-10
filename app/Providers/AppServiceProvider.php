@@ -2,8 +2,9 @@
 
 namespace App\Providers;
 
-use App\Models\User;                // Tambahkan ini
-use App\Observers\MemberObserver;   // Tambahkan ini
+use App\Models\User;
+use App\Observers\MemberObserver;
+use App\Services\Payment\DokuService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -13,7 +14,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Binding DokuService ke container (sebenarnya optional, tapi aman)
+        $this->app->singleton(DokuService::class, function () {
+            return new DokuService();
+        });
     }
 
     /**
@@ -21,7 +25,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Daftarkan Observer di sini
         User::observe(MemberObserver::class);
     }
 }
