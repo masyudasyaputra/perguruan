@@ -51,7 +51,7 @@ class UserTestingSeeder extends Seeder
                 'role' => 'admin_dojo',
                 'province_id' => 5,
                 'city_id' => 52,
-                'dojo_id' => 3,
+                'dojo_id' => null,
             ],
             [
                 'name' => 'Sensei Penguji',
@@ -60,7 +60,7 @@ class UserTestingSeeder extends Seeder
                 'role' => 'penguji',
                 'province_id' => 5,
                 'city_id' => 52,
-                'dojo_id' => 3,
+                'dojo_id' => null,
             ],
             [
                 'name' => 'Nasha Aleena (Member)',
@@ -69,7 +69,7 @@ class UserTestingSeeder extends Seeder
                 'role' => 'member',
                 'province_id' => 5,
                 'city_id' => 52,
-                'dojo_id' => 3,
+                'dojo_id' => null,
                 'belt_level_id' => 1, // Asumsi Sabuk Putih
             ],
         ];

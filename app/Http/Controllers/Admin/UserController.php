@@ -16,31 +16,36 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $user = auth()->user();
+        $admin = auth()->user();
+        $adminRole = strtolower((string) $admin->role);
+
         $query = User::with(['province', 'city', 'dojo']);
 
-        // --- FILTER KEAMANAN ROLE ---
-        if ($user->role === 'pengprov') {
-            $query->where('province_id', $user->province_id);
-        } elseif ($user->role === 'pengcab') {
-            $query->where('city_id', $user->city_id);
+        // Filter keamanan berdasarkan role login
+        if ($adminRole === 'pengprov') {
+            $query->where('province_id', $admin->province_id);
+        } elseif ($adminRole === 'pengcab') {
+            $query->where('city_id', $admin->city_id);
+        } elseif ($adminRole === 'admin_dojo') {
+            $query->where('dojo_id', $admin->dojo_id);
         }
 
-        // --- FILTER PENCARIAN (SEARCH) ---
+        // Filter pencarian
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim((string) $request->search);
+
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
-        // --- FILTER ROLE ---
+        // Filter role
         if ($request->filled('role')) {
             $query->where('role', $request->role);
         }
 
-        // --- FILTER WILAYAH (PROVINSI) ---
+        // Filter provinsi
         if ($request->filled('province_id')) {
             $query->where('province_id', $request->province_id);
         }
@@ -53,77 +58,135 @@ class UserController extends Controller
     public function create()
     {
         $admin = auth()->user();
-        $provinces = Province::orderBy('name')->get();
-        $beltLevels = BeltLevel::all();
+        $adminRole = strtolower((string) $admin->role);
 
-        // Daftar role yang tersedia berdasarkan siapa yang login
         $availableRoles = $this->getAvailableRoles($admin);
+        $provinces = $this->getAvailableProvinces($admin);
+        $beltLevels = BeltLevel::orderBy('id')->get();
 
-        return view('admin.users.create_admin', compact('provinces', 'beltLevels', 'availableRoles'));
+        $cities = collect();
+        $dojos = collect();
+
+        if ($adminRole === 'pengprov' && $admin->province_id) {
+            $cities = City::where('province_id', $admin->province_id)->orderBy('name')->get();
+        }
+
+        if ($adminRole === 'pengcab' && $admin->city_id) {
+            $cities = City::where('id', $admin->city_id)->orderBy('name')->get();
+            $dojos = Dojo::where('city_id', $admin->city_id)->orderBy('name')->get();
+        }
+
+        if ($adminRole === 'admin_dojo' && $admin->city_id) {
+            $cities = City::where('id', $admin->city_id)->orderBy('name')->get();
+            $dojos = Dojo::where('id', $admin->dojo_id)->orderBy('name')->get();
+        }
+
+        return view('admin.users.create_admin', compact(
+            'provinces',
+            'beltLevels',
+            'availableRoles',
+            'cities',
+            'dojos'
+        ));
     }
 
     public function store(Request $request)
     {
+        $admin = auth()->user();
+        $availableRoles = array_keys($this->getAvailableRoles($admin));
+
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8',
-            'roles' => 'required|array|min:1',
-            'province_id' => 'required|exists:provinces,id',
-            'city_id' => 'nullable|exists:cities,id',
-            'dojo_id' => 'nullable|exists:dojos,id',
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:8'],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['required', 'string', Rule::in($availableRoles)],
+            'province_id' => ['nullable', 'exists:provinces,id'],
+            'city_id' => ['nullable', 'exists:cities,id'],
+            'dojo_id' => ['nullable', 'exists:dojos,id'],
+            'belt_level_id' => ['nullable', 'exists:belt_levels,id'],
         ]);
 
-        // Role utama diambil dari pilihan pertama array roles
-        $primaryRole = $request->roles[0];
+        $allRoles = array_values(array_unique($request->roles));
+        $primaryRole = $allRoles[0];
 
-        User::create([
+        $data = [
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'role' => $primaryRole,      // String (untuk middleware/legacy)
-            'roles' => $request->roles,   // Array/JSON (untuk multi-role)
+            'role' => $primaryRole,
+            'roles' => $allRoles,
             'province_id' => $request->province_id,
             'city_id' => $request->city_id,
             'dojo_id' => $request->dojo_id,
+            'belt_level_id' => $request->belt_level_id,
             'is_active' => true,
-        ]);
+        ];
 
-        return redirect()->route('admin.users.index')->with('success', 'Admin berhasil dibuat.');
+        $data = $this->sanitizeRegionData($data, $allRoles, $admin);
+
+        User::create($data);
+
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', 'User berhasil dibuat.');
     }
 
     public function edit(User $user)
     {
         $admin = auth()->user();
-        $provinces = Province::orderBy('name')->get();
 
-        // Diperbaiki: Load data wilayah agar dropdown terisi saat edit dibuka
-        $cities = $user->province_id ? City::where('province_id', $user->province_id)->orderBy('name')->get() : collect();
-        $dojos = $user->city_id ? Dojo::where('city_id', $user->city_id)->orderBy('name')->get() : collect();
+        $this->authorizeUserAccess($admin, $user);
 
+        $provinces = $this->getAvailableProvinces($admin);
         $availableRoles = $this->getAvailableRoles($admin);
 
-        if (is_null($user->roles)) {
+        $cities = $user->province_id
+            ? City::where('province_id', $user->province_id)->orderBy('name')->get()
+            : collect();
+
+        $dojos = $user->city_id
+            ? Dojo::where('city_id', $user->city_id)->orderBy('name')->get()
+            : collect();
+
+        $beltLevels = BeltLevel::orderBy('id')->get();
+
+        if (empty($user->roles)) {
             $user->roles = [$user->role];
         }
 
-        return view('admin.users.edit', compact('user', 'provinces', 'cities', 'dojos', 'availableRoles'));
+        return view('admin.users.edit', compact(
+            'user',
+            'provinces',
+            'cities',
+            'dojos',
+            'availableRoles',
+            'beltLevels'
+        ));
     }
 
     public function update(Request $request, User $user)
     {
+        $admin = auth()->user();
+
+        $this->authorizeUserAccess($admin, $user);
+
+        $availableRoles = array_keys($this->getAvailableRoles($admin));
+
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['required', 'string', Rule::in($availableRoles)],
             'is_active' => ['required', 'boolean'],
-            'province_id' => ['required', 'exists:provinces,id'],
+            'province_id' => ['nullable', 'exists:provinces,id'],
             'city_id' => ['nullable', 'exists:cities,id'],
             'dojo_id' => ['nullable', 'exists:dojos,id'],
+            'belt_level_id' => ['nullable', 'exists:belt_levels,id'],
             'password' => ['nullable', 'string', 'min:8'],
         ]);
 
-        $allRoles = $request->roles;
+        $allRoles = array_values(array_unique($request->roles));
         $primaryRole = $allRoles[0];
 
         $data = [
@@ -134,27 +197,11 @@ class UserController extends Controller
             'is_active' => $request->is_active,
             'province_id' => $request->province_id,
             'city_id' => $request->city_id,
-            'dojo_id' => $request->dojo_id, // Default ambil dari request
+            'dojo_id' => $request->dojo_id,
+            'belt_level_id' => $request->belt_level_id,
         ];
 
-        // --- Logika Sanitasi Wilayah yang Diperbaiki ---
-        // Kita cek apakah user memiliki role yang membutuhkan Dojo. 
-        // Jika TIDAK ADA role dojo/penguji dalam array roles, baru kita set null.
-        $needsDojo = count(array_intersect(['admin_dojo', 'penguji', 'member'], $allRoles)) > 0;
-        $needsCity = count(array_intersect(['pengcab', 'admin_dojo', 'penguji', 'member'], $allRoles)) > 0;
-
-        if ($primaryRole === 'pb') {
-            $data['province_id'] = null;
-            $data['city_id'] = null;
-            $data['dojo_id'] = null;
-        } else {
-            if (!$needsCity) {
-                $data['city_id'] = null;
-            }
-            if (!$needsDojo) {
-                $data['dojo_id'] = null;
-            }
-        }
+        $data = $this->sanitizeRegionData($data, $allRoles, $admin);
 
         if ($request->filled('password')) {
             $data['password'] = Hash::make($request->password);
@@ -162,44 +209,163 @@ class UserController extends Controller
 
         $user->update($data);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'Data pengurus ' . $user->name . ' berhasil diperbarui.');
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', 'Data user ' . $user->name . ' berhasil diperbarui.');
     }
 
     public function destroy(User $user)
     {
-        // Cegah hapus diri sendiri
-        if (auth()->id() === $user->id) {
+        $admin = auth()->user();
+
+        $this->authorizeUserAccess($admin, $user);
+
+        if ($admin->id === $user->id) {
             return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
         }
 
         $user->delete();
-        return redirect()->route('admin.users.index')
+
+        return redirect()
+            ->route('admin.users.index')
             ->with('success', 'User berhasil dihapus.');
     }
 
     /**
-     * Helper untuk mendapatkan daftar role yang boleh dibuat/diedit
+     * Daftar role yang boleh dibuat/diedit oleh user yang login
      */
-    private function getAvailableRoles($admin)
+    private function getAvailableRoles($admin): array
     {
-        if ($admin->role === 'pb') {
+        $role = strtolower((string) $admin->role);
+
+        if (in_array($role, ['pb', 'admin', 'superadmin'], true)) {
             return [
                 'pengprov' => 'Admin Provinsi (Pengprov)',
                 'pengcab' => 'Admin Kota/Kab (Pengcab)',
                 'admin_dojo' => 'Admin Dojo (Sensei)',
                 'penguji' => 'Penguji Ujian Sabuk',
+                'member' => 'Member',
             ];
         }
 
-        if ($admin->role === 'pengprov') {
+        if ($role === 'pengprov') {
             return [
                 'pengcab' => 'Admin Kota/Kab (Pengcab)',
                 'admin_dojo' => 'Admin Dojo (Sensei)',
                 'penguji' => 'Penguji Ujian Sabuk',
+                'member' => 'Member',
+            ];
+        }
+
+        if ($role === 'pengcab') {
+            return [
+                'admin_dojo' => 'Admin Dojo (Sensei)',
+                'penguji' => 'Penguji Ujian Sabuk',
+                'member' => 'Member',
+            ];
+        }
+
+        if ($role === 'admin_dojo') {
+            return [
+                'member' => 'Member',
             ];
         }
 
         return [];
+    }
+
+    /**
+     * Daftar provinsi yang boleh dipilih sesuai role login
+     */
+    private function getAvailableProvinces($admin)
+    {
+        $role = strtolower((string) $admin->role);
+
+        if (in_array($role, ['pb', 'admin', 'superadmin'], true)) {
+            return Province::orderBy('name')->get();
+        }
+
+        if ($admin->province_id) {
+            return Province::where('id', $admin->province_id)->orderBy('name')->get();
+        }
+
+        return collect();
+    }
+
+    /**
+     * Sanitasi field wilayah berdasarkan role yang dipilih
+     */
+    private function sanitizeRegionData(array $data, array $allRoles, $admin): array
+    {
+        $primaryRole = $allRoles[0] ?? null;
+
+        $needsProvince = count(array_intersect(['pengprov', 'pengcab', 'admin_dojo', 'penguji', 'member'], $allRoles)) > 0;
+        $needsCity = count(array_intersect(['pengcab', 'admin_dojo', 'penguji', 'member'], $allRoles)) > 0;
+        $needsDojo = count(array_intersect(['admin_dojo', 'member'], $allRoles)) > 0;
+        $needsBeltLevel = in_array('member', $allRoles, true);
+
+        if (in_array($primaryRole, ['pb', 'admin', 'superadmin'], true)) {
+            $data['province_id'] = null;
+            $data['city_id'] = null;
+            $data['dojo_id'] = null;
+            $data['belt_level_id'] = null;
+
+            return $data;
+        }
+
+        $adminRole = strtolower((string) $admin->role);
+
+        if ($adminRole === 'pengprov') {
+            $data['province_id'] = $admin->province_id;
+        }
+
+        if ($adminRole === 'pengcab') {
+            $data['province_id'] = $admin->province_id;
+            $data['city_id'] = $admin->city_id;
+        }
+
+        if ($adminRole === 'admin_dojo') {
+            $data['province_id'] = $admin->province_id;
+            $data['city_id'] = $admin->city_id;
+            $data['dojo_id'] = $admin->dojo_id;
+        }
+
+        if (!$needsProvince) {
+            $data['province_id'] = null;
+        }
+
+        if (!$needsCity) {
+            $data['city_id'] = null;
+        }
+
+        if (!$needsDojo) {
+            $data['dojo_id'] = null;
+        }
+
+        if (!$needsBeltLevel) {
+            $data['belt_level_id'] = null;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Batasi akses edit/hapus sesuai scope wilayah login
+     */
+    private function authorizeUserAccess($admin, User $user): void
+    {
+        $adminRole = strtolower((string) $admin->role);
+
+        if ($adminRole === 'pengprov' && $user->province_id !== $admin->province_id) {
+            abort(403, 'Anda tidak memiliki akses ke user ini.');
+        }
+
+        if ($adminRole === 'pengcab' && $user->city_id !== $admin->city_id) {
+            abort(403, 'Anda tidak memiliki akses ke user ini.');
+        }
+
+        if ($adminRole === 'admin_dojo' && $user->dojo_id !== $admin->dojo_id) {
+            abort(403, 'Anda tidak memiliki akses ke user ini.');
+        }
     }
 }

@@ -36,10 +36,10 @@ return [
     ],
 
     'doku' => [
-        'base_url' => env('DOKU_BASE_URL', 'https://sandbox.doku.com'),
+        'base_url' => env('DOKU_BASE_URL', 'https://api-sandbox.doku.com'),
         'checkout_endpoint' => env('DOKU_CHECKOUT_ENDPOINT', '/checkout/v1/payment'),
-        'client_id' => env('BRN-0227-1772519750957'),
-        'secret_key' => env('SK-1J6gb4cnHIQKZhIm11PM'),
+        'client_id' => env('DOKU_CLIENT_ID'),
+        'secret_key' => env('DOKU_SECRET_KEY'),
         'expire_minutes' => env('DOKU_EXPIRE_MINUTES', 60),
     ],
 
