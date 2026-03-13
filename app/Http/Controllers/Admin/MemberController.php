@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class MemberController extends Controller
 {
@@ -22,17 +23,11 @@ class MemberController extends Controller
     ) {
     }
 
-    /**
-     * Redirect index ke form create
-     */
     public function index()
     {
         return redirect()->route('admin.members.create');
     }
 
-    /**
-     * FORM: Pendaftaran kolektif
-     */
     public function create()
     {
         $user = auth()->user();
@@ -51,10 +46,7 @@ class MemberController extends Controller
             ->when($role === 'pengprov', function ($q) use ($user) {
                 return $q->where('province_id', $user->province_id);
             })
-            ->when($role === 'pengcab', function ($q) use ($user) {
-                return $q->where('id', $user->city_id);
-            })
-            ->when($role === 'admin_dojo', function ($q) use ($user) {
+            ->when(in_array($role, ['pengcab', 'admin_dojo']), function ($q) use ($user) {
                 return $q->where('id', $user->city_id);
             })
             ->orderBy('name')
@@ -63,9 +55,6 @@ class MemberController extends Controller
         return view('admin.members.create', compact('provinces', 'beltLevels', 'cities', 'role'));
     }
 
-    /**
-     * REVIEW: halaman konfirmasi sebelum bayar
-     */
     public function review(Request $request)
     {
         $admin = auth()->user();
@@ -74,39 +63,52 @@ class MemberController extends Controller
         if ($request->isMethod('get')) {
             return redirect()
                 ->route('admin.members.create')
-                ->withErrors(['review' => 'Silakan isi form pendaftaran terlebih dahulu.']);
+                ->withErrors([
+                    'review' => 'Silakan isi form pendaftaran terlebih dahulu.',
+                ]);
         }
 
         $validated = $request->validate([
             'members' => ['required', 'array', 'min:1'],
             'members.*.name' => ['required', 'string', 'max:255'],
             'members.*.parent_name' => ['nullable', 'string', 'max:255'],
-            'members.*.whatsapp' => ['required', 'string', 'max:30', 'regex:/^[0-9+\s()-]{8,30}$/'],
+            'members.*.whatsapp' => [
+                'required',
+                'string',
+                'max:30',
+                'regex:/^[0-9+\s()-]{8,30}$/',
+                'distinct',
+                Rule::unique('users', 'whatsapp'),
+            ],
             'members.*.belt_level_id' => ['required', 'integer', 'exists:belt_levels,id'],
             'members.*.email' => ['nullable', 'email', 'max:255'],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
         ], [
             'members.*.whatsapp.regex' => 'Format WhatsApp tidak valid.',
+            'members.*.whatsapp.distinct' => 'Nomor WhatsApp antar member dalam form tidak boleh sama.',
+            'members.*.whatsapp.unique' => 'Nomor WhatsApp sudah terdaftar di sistem.',
         ]);
 
-        $member_data = $validated['members'];
+        $memberData = $validated['members'];
 
         $provinceId = $this->resolveProvinceId($admin, $role, (int) ($validated['province_id'] ?? 0));
         if ($provinceId <= 0) {
             return redirect()
                 ->route('admin.members.create')
-                ->withErrors(['province_id' => 'Province belum di-set pada akun admin / dojo.']);
+                ->withErrors([
+                    'province_id' => 'Province belum di-set pada akun admin / dojo.',
+                ]);
         }
 
         $beltFees = DB::table('fee_configurations')
             ->where('province_id', $provinceId)
             ->pluck('amount', 'belt_level_id')
-            ->map(fn($value) => (int) $value)
+            ->map(fn ($value) => (int) $value)
             ->toArray();
 
-        $beltIds = collect($member_data)
+        $beltIds = collect($memberData)
             ->pluck('belt_level_id')
-            ->map(fn($value) => (int) $value)
+            ->map(fn ($value) => (int) $value)
             ->unique()
             ->values()
             ->all();
@@ -114,7 +116,7 @@ class MemberController extends Controller
         $beltMap = BeltLevel::whereIn('id', $beltIds)->get()->keyBy('id');
         $hasKyuDanColumn = Schema::hasColumn('belt_levels', 'kyu_dan');
 
-        foreach ($member_data as $i => $item) {
+        foreach ($memberData as $i => $item) {
             $beltId = (int) $item['belt_level_id'];
             $belt = $beltMap->get($beltId);
             $unit = (int) ($beltFees[$beltId] ?? 0);
@@ -133,28 +135,25 @@ class MemberController extends Controller
                 $beltName .= ' (' . $belt->kyu_dan . ')';
             }
 
-            $member_data[$i]['belt_name'] = $beltName;
-            $member_data[$i]['unit_fee'] = $unit;
-            $member_data[$i]['email'] = $item['email'] ?? '';
-            $member_data[$i]['parent_name'] = $item['parent_name'] ?? '';
+            $memberData[$i]['belt_name'] = $beltName;
+            $memberData[$i]['unit_fee'] = $unit;
+            $memberData[$i]['email'] = $item['email'] ?? '';
+            $memberData[$i]['parent_name'] = $item['parent_name'] ?? '';
         }
 
-        $admin_fee = (int) config('services.membership.admin_fee', 0);
-        $subtotal = array_sum(array_map(fn($member) => (int) ($member['unit_fee'] ?? 0), $member_data));
-        $total = $subtotal + $admin_fee;
+        $adminFee = (int) config('services.membership.admin_fee', 0);
+        $subtotal = array_sum(array_map(fn ($member) => (int) ($member['unit_fee'] ?? 0), $memberData));
+        $total = $subtotal + $adminFee;
 
-        return view('admin.members.review', compact(
-            'member_data',
-            'beltFees',
-            'admin_fee',
-            'total',
-            'provinceId'
-        ));
+        return view('admin.members.review', [
+            'member_data' => $memberData,
+            'beltFees' => $beltFees,
+            'admin_fee' => $adminFee,
+            'total' => $total,
+            'provinceId' => $provinceId,
+        ]);
     }
 
-    /**
-     * STORE: create member + payment + redirect ke DOKU
-     */
     public function store(Request $request)
     {
         $admin = auth()->user();
@@ -163,32 +162,45 @@ class MemberController extends Controller
         if (!$request->has('members')) {
             return redirect()
                 ->route('admin.members.create')
-                ->withErrors(['store' => 'Data member tidak ditemukan. Silakan ulangi dari form pendaftaran.']);
+                ->withErrors([
+                    'store' => 'Data member tidak ditemukan. Silakan ulangi dari form pendaftaran.',
+                ]);
         }
 
         $validated = $request->validate([
             'members' => ['required', 'array', 'min:1'],
             'members.*.name' => ['required', 'string', 'max:255'],
             'members.*.parent_name' => ['nullable', 'string', 'max:255'],
-            'members.*.whatsapp' => ['required', 'string', 'max:30', 'regex:/^[0-9+\s()-]{8,30}$/'],
+            'members.*.whatsapp' => [
+                'required',
+                'string',
+                'max:30',
+                'regex:/^[0-9+\s()-]{8,30}$/',
+                'distinct',
+                Rule::unique('users', 'whatsapp'),
+            ],
             'members.*.belt_level_id' => ['required', 'integer', 'exists:belt_levels,id'],
             'members.*.email' => ['nullable', 'email', 'max:255'],
             'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
         ], [
             'members.*.whatsapp.regex' => 'Format WhatsApp tidak valid.',
+            'members.*.whatsapp.distinct' => 'Nomor WhatsApp antar member dalam form tidak boleh sama.',
+            'members.*.whatsapp.unique' => 'Nomor WhatsApp sudah terdaftar di sistem.',
         ]);
 
         $provinceId = $this->resolveProvinceId($admin, $role, (int) ($validated['province_id'] ?? 0));
         if ($provinceId <= 0) {
             return redirect()
                 ->route('admin.members.create')
-                ->withErrors(['province_id' => 'Province belum di-set pada akun admin / dojo.']);
+                ->withErrors([
+                    'province_id' => 'Province belum di-set pada akun admin / dojo.',
+                ]);
         }
 
         $feeMap = DB::table('fee_configurations')
             ->where('province_id', $provinceId)
             ->pluck('amount', 'belt_level_id')
-            ->map(fn($value) => (int) $value)
+            ->map(fn ($value) => (int) $value)
             ->toArray();
 
         $adminFee = (int) config('services.membership.admin_fee', 0);
@@ -212,6 +224,11 @@ class MemberController extends Controller
                         );
                     }
 
+                    // fail-safe tambahan
+                    if (User::where('whatsapp', $data['whatsapp'])->exists()) {
+                        throw new \RuntimeException("Nomor WhatsApp {$data['whatsapp']} sudah terdaftar.");
+                    }
+
                     $email = !empty($data['email'])
                         ? $data['email']
                         : preg_replace('/[^0-9]/', '', $data['whatsapp']) . '.' . strtolower(Str::random(4)) . '@perguruan.local';
@@ -227,6 +244,7 @@ class MemberController extends Controller
                         'whatsapp' => $data['whatsapp'],
                         'password' => Hash::make($defaultPass),
                         'role' => 'member',
+                        'roles' => ['member'],
                         'is_active' => false,
                         'province_id' => $provinceId,
                         'city_id' => $admin->city_id,
@@ -252,7 +270,7 @@ class MemberController extends Controller
                     'user_id' => $admin->id,
                     'type' => 'membership_fee',
                     'reference' => 'IURAN:BULK:' . now()->format('Y-m') . ':PAYER:' . $admin->id,
-                    'invoice_number' => 'COLL-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6)),
+                    'invoice_number' => $this->makeInvoiceNumber(),
                     'amount' => $total,
                     'status' => 'pending',
                     'expires_at' => $expiresAt,
@@ -285,12 +303,12 @@ class MemberController extends Controller
             ]);
 
             if (empty($checkout['payment_url'])) {
-    return redirect()
-        ->route('admin.dashboard')
-        ->withErrors([
-            'payment' => $checkout['message'] ?? 'Member tersimpan, tetapi gagal membuat payment URL dari DOKU.',
-        ]);
-}
+                return redirect()
+                    ->route('admin.dashboard')
+                    ->withErrors([
+                        'payment' => $checkout['message'] ?? 'Member tersimpan, tetapi gagal membuat payment URL dari DOKU.',
+                    ]);
+            }
 
             $payment->update([
                 'payment_url' => $checkout['payment_url'],
@@ -321,5 +339,10 @@ class MemberController extends Controller
         }
 
         return $provinceId;
+    }
+
+    protected function makeInvoiceNumber(): string
+    {
+        return 'INK' . now()->format('ymdHis') . strtoupper(Str::random(4));
     }
 }

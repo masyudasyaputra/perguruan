@@ -14,13 +14,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-
-        // Role utama (primary)
         'role',
-
-        // Multi-role tambahan (JSON)
         'roles',
-
         'is_active',
         'province_id',
         'city_id',
@@ -31,7 +26,10 @@ class User extends Authenticatable
         'expired_at',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
 
     protected function casts(): array
     {
@@ -44,40 +42,35 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Mengecek apakah user punya role tertentu.
-     * - Support: $user->hasRole('penguji')
-     * - Support: $user->hasRole(['pb','pengprov'])
-     * - Support multi-role via kolom JSON roles + kolom role (primary)
-     */
     public function hasRole(string|array $roles): bool
     {
         $userRoles = $this->allRoles();
 
         if (is_array($roles)) {
-            foreach ($roles as $r) {
-                if (in_array($r, $userRoles, true))
+            foreach ($roles as $role) {
+                if (in_array(strtolower(trim($role)), $userRoles, true)) {
                     return true;
+                }
             }
+
             return false;
         }
 
-        return in_array($roles, $userRoles, true);
+        return in_array(strtolower(trim($roles)), $userRoles, true);
     }
 
-    /**
-     * Ambil semua role user (gabungan role utama + roles tambahan),
-     * tanpa duplikasi dan tanpa nilai kosong.
-     */
     public function allRoles(): array
     {
         $roles = is_array($this->roles) ? $this->roles : [];
         $roles[] = $this->role;
 
-        return array_values(array_unique(array_filter($roles)));
+        return collect($roles)
+            ->filter()
+            ->map(fn ($role) => strtolower(trim((string) $role)))
+            ->unique()
+            ->values()
+            ->all();
     }
-
-    // --- RELASI ---
 
     public function province()
     {
@@ -99,9 +92,6 @@ class User extends Authenticatable
         return $this->belongsTo(BeltLevel::class);
     }
 
-    /**
-     * Jika Anda memiliki tabel payments, pastikan relasi ini ada.
-     */
     public function payments()
     {
         return $this->hasMany(Payment::class);
@@ -113,29 +103,18 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
-    // --- ATTRIBUTES ---
-
-    /**
-     * Status aktif berdasarkan pembayaran SUCCESS untuk belt yang sedang disandang.
-     * Catatan: Pastikan status di DB memang 'SUCCESS' (bukan 'paid' / 'PAID' dll).
-     */
-    public function getIsActiveStatusAttribute(): bool
-    {
-        return $this->payments()
-            ->where('belt_level_id', $this->belt_level_id)
-            ->where('status', 'paid') // ✅ samakan dengan enum kamu
-            ->exists();
-    }
-
-    // Relasi ke histori sabuk
     public function beltHistories()
     {
         return $this->hasMany(BeltHistory::class);
     }
 
-    // Helper untuk mengambil sabuk terbaru
     public function currentBelt()
     {
         return $this->belongsTo(BeltLevel::class, 'current_belt_level_id');
+    }
+
+    public function getIsActiveStatusAttribute(): bool
+    {
+        return (bool) $this->is_active;
     }
 }

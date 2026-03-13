@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\PaymentStatus;
-use App\Enums\PaymentType;
 use App\Models\ExamFee;
 use App\Models\FeeConfiguration;
 use App\Models\Payment;
+use App\Models\User;
 use App\Services\Payment\DokuService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class PaymentController extends Controller
@@ -19,17 +19,6 @@ class PaymentController extends Controller
     ) {
     }
 
-    /**
-     * ============================
-     * IURAN: SINGLE (1 user)
-     * ============================
-     * Amount DIHITUNG dari tabel fee_configurations
-     * Wajib:
-     * - belt_level_id
-     * Optional:
-     * - province_id (kalau mau override; default ambil dari user/dojo)
-     * - reference
-     */
     public function createIuran(Request $request)
     {
         $user = Auth::user();
@@ -42,7 +31,9 @@ class PaymentController extends Controller
 
         $provinceId = $this->resolveProvinceId($user, (int) $request->input('province_id', 0));
         if (!$provinceId) {
-            return back()->withErrors(['payment' => 'Province tidak ditemukan. Pastikan user/dojo sudah punya province_id.']);
+            return back()->withErrors([
+                'payment' => 'Province tidak ditemukan. Pastikan user/dojo sudah punya province_id.',
+            ]);
         }
 
         $fee = FeeConfiguration::query()
@@ -51,49 +42,61 @@ class PaymentController extends Controller
             ->first();
 
         if (!$fee) {
-            return back()->withErrors(['payment' => 'Tarif iuran belum dikonfigurasi untuk provinsi & tingkat sabuk tersebut.']);
+            return back()->withErrors([
+                'payment' => 'Tarif iuran belum dikonfigurasi untuk provinsi dan tingkat sabuk tersebut.',
+            ]);
         }
 
         $amount = (int) $fee->amount;
+        $expiresAt = now()->addMinutes((int) config('services.doku.expire_minutes', 60));
 
-        $payment = Payment::create([
+        $paymentData = [
             'user_id' => $user->id,
-            'type' => PaymentType::Iuran,
+            'type' => 'membership_fee',
             'reference' => $request->reference ?: ('IURAN:' . now()->format('Y-m')),
             'belt_level_id' => (int) $request->belt_level_id,
             'invoice_number' => $this->makeInvoiceNumber('IUR'),
             'amount' => $amount,
-            'status' => PaymentStatus::Pending,
-            'expires_at' => now()->addMinutes((int) config('services.doku.expire_minutes', 60)),
+            'status' => 'pending',
+            'expires_at' => $expiresAt,
+            'expired_at' => $expiresAt,
             'payload' => [
                 'province_id' => $provinceId,
                 'fee_source' => 'fee_configurations',
                 'fee_id' => $fee->id,
+                'paid_for_members' => [
+                    [
+                        'user_id' => $user->id,
+                        'name' => $user->name,
+                        'whatsapp' => $user->whatsapp ?? null,
+                        'belt_level_id' => (int) $request->belt_level_id,
+                        'amount' => $amount,
+                    ],
+                ],
             ],
-        ]);
+        ];
+
+        if (Schema::hasColumn('payments', 'callback_payload')) {
+            $paymentData['callback_payload'] = $paymentData['payload'];
+        }
+
+        $payment = Payment::create($paymentData);
 
         $result = $this->doku->createCheckout($payment, $this->customerFromUser($user));
 
         if (empty($result['payment_url'])) {
-            return back()->withErrors(['payment' => 'Gagal membuat payment URL dari DOKU.']);
+            return back()->withErrors([
+                'payment' => $result['message'] ?? 'Gagal membuat payment URL dari DOKU.',
+            ]);
         }
 
-        $payment->update(['payment_url' => $result['payment_url']]);
+        $payment->update([
+            'payment_url' => $result['payment_url'],
+        ]);
 
         return redirect()->away($result['payment_url']);
     }
 
-    /**
-     * ============================
-     * IURAN: BULK (kolektif)
-     * ============================
-     * Amount DIHITUNG dari fee_configurations per member (sum)
-     * Body:
-     * - members[] (name, whatsapp, parent_name?, belt_level_id)
-     * Optional:
-     * - province_id (kalau mau override; default ambil dari user/dojo)
-     * - reference
-     */
     public function createIuranBulk(Request $request)
     {
         $user = Auth::user();
@@ -110,11 +113,18 @@ class PaymentController extends Controller
 
         $provinceId = $this->resolveProvinceId($user, (int) $request->input('province_id', 0));
         if (!$provinceId) {
-            return back()->withErrors(['payment' => 'Province tidak ditemukan. Pastikan user/dojo sudah punya province_id.']);
+            return back()->withErrors([
+                'payment' => 'Province tidak ditemukan. Pastikan user/dojo sudah punya province_id.',
+            ]);
         }
 
         $members = $request->members;
-        $beltIds = collect($members)->pluck('belt_level_id')->map(fn($v) => (int) $v)->unique()->values()->all();
+        $beltIds = collect($members)
+            ->pluck('belt_level_id')
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
 
         $fees = FeeConfiguration::query()
             ->where('province_id', $provinceId)
@@ -122,12 +132,11 @@ class PaymentController extends Controller
             ->get()
             ->keyBy('belt_level_id');
 
-        // hitung total + siapkan breakdown
         $total = 0;
         $breakdown = [];
 
-        foreach ($members as $idx => $m) {
-            $beltId = (int) $m['belt_level_id'];
+        foreach ($members as $member) {
+            $beltId = (int) $member['belt_level_id'];
             $feeRow = $fees->get($beltId);
 
             if (!$feeRow) {
@@ -140,9 +149,9 @@ class PaymentController extends Controller
             $total += $itemAmount;
 
             $breakdown[] = [
-                'name' => $m['name'],
-                'whatsapp' => $m['whatsapp'],
-                'parent_name' => $m['parent_name'] ?? null,
+                'name' => $member['name'],
+                'whatsapp' => $member['whatsapp'],
+                'parent_name' => $member['parent_name'] ?? null,
                 'belt_level_id' => $beltId,
                 'amount' => $itemAmount,
                 'fee_id' => $feeRow->id,
@@ -150,50 +159,53 @@ class PaymentController extends Controller
         }
 
         if ($total < 1000) {
-            return back()->withErrors(['payment' => 'Total pembayaran tidak valid.']);
+            return back()->withErrors([
+                'payment' => 'Total pembayaran tidak valid.',
+            ]);
         }
 
         $reference = $request->reference ?: ('IURAN:BULK:' . now()->format('Y-m') . ':DOJO:' . ($user->dojo_id ?? '-'));
+        $expiresAt = now()->addMinutes((int) config('services.doku.expire_minutes', 60));
 
-        $payment = Payment::create([
+        $paymentData = [
             'user_id' => $user->id,
-            'type' => PaymentType::Iuran,
+            'type' => 'membership_fee',
             'reference' => $reference,
             'invoice_number' => $this->makeInvoiceNumber('IUR'),
             'amount' => $total,
-            'status' => PaymentStatus::Pending,
-            'expires_at' => now()->addMinutes((int) config('services.doku.expire_minutes', 60)),
+            'status' => 'pending',
+            'expires_at' => $expiresAt,
+            'expired_at' => $expiresAt,
             'payload' => [
                 'province_id' => $provinceId,
                 'fee_source' => 'fee_configurations',
-                'bulk_members' => $breakdown,
+                'paid_for_members' => $breakdown,
                 'bulk_count' => count($members),
                 'source' => 'members.confirm',
             ],
-        ]);
+        ];
+
+        if (Schema::hasColumn('payments', 'callback_payload')) {
+            $paymentData['callback_payload'] = $paymentData['payload'];
+        }
+
+        $payment = Payment::create($paymentData);
 
         $result = $this->doku->createCheckout($payment, $this->customerFromUser($user));
 
         if (empty($result['payment_url'])) {
-            return back()->withErrors(['payment' => 'Gagal membuat payment URL dari DOKU.']);
+            return back()->withErrors([
+                'payment' => $result['message'] ?? 'Gagal membuat payment URL dari DOKU.',
+            ]);
         }
 
-        $payment->update(['payment_url' => $result['payment_url']]);
+        $payment->update([
+            'payment_url' => $result['payment_url'],
+        ]);
 
         return redirect()->away($result['payment_url']);
     }
 
-    /**
-     * ============================
-     * UJIAN: SINGLE
-     * ============================
-     * Amount DIAMBIL dari tabel exam_fees
-     * Wajib:
-     * - belt_level_id
-     * Optional:
-     * - exam_id (kalau ada relasi event ujian kamu)
-     * - reference
-     */
     public function createUjian(Request $request)
     {
         $user = Auth::user();
@@ -201,7 +213,7 @@ class PaymentController extends Controller
         $request->validate([
             'belt_level_id' => ['required', 'integer'],
             'exam_id' => ['nullable', 'integer'],
-            'reference' => ['nullable', 'string', 'max:80'], // contoh: EXAM:12
+            'reference' => ['nullable', 'string', 'max:80'],
         ]);
 
         $fee = ExamFee::query()
@@ -209,51 +221,58 @@ class PaymentController extends Controller
             ->first();
 
         if (!$fee) {
-            return back()->withErrors(['payment' => 'Biaya ujian belum dikonfigurasi untuk tingkat sabuk tersebut.']);
+            return back()->withErrors([
+                'payment' => 'Biaya ujian belum dikonfigurasi untuk tingkat sabuk tersebut.',
+            ]);
         }
 
         $amount = (int) $fee->amount;
-
         $reference = $request->reference
             ?: ('UJIAN:' . ($request->exam_id ? ('EXAM-' . $request->exam_id) : now()->format('Ymd')));
 
-        $payment = Payment::create([
+        $expiresAt = now()->addMinutes((int) config('services.doku.expire_minutes', 60));
+
+        $paymentData = [
             'user_id' => $user->id,
-            'type' => PaymentType::Ujian,
+            'type' => 'exam_fee',
             'reference' => $reference,
             'belt_level_id' => (int) $request->belt_level_id,
             'invoice_number' => $this->makeInvoiceNumber('EXM'),
             'amount' => $amount,
-            'status' => PaymentStatus::Pending,
-            'expires_at' => now()->addMinutes((int) config('services.doku.expire_minutes', 60)),
+            'status' => 'pending',
+            'expires_at' => $expiresAt,
+            'expired_at' => $expiresAt,
             'payload' => [
                 'exam_id' => $request->exam_id,
                 'fee_source' => 'exam_fees',
                 'fee_id' => $fee->id,
             ],
-        ]);
+        ];
+
+        if (Schema::hasColumn('payments', 'callback_payload')) {
+            $paymentData['callback_payload'] = $paymentData['payload'];
+        }
+
+        $payment = Payment::create($paymentData);
 
         $result = $this->doku->createCheckout($payment, $this->customerFromUser($user));
 
         if (empty($result['payment_url'])) {
-            return back()->withErrors(['payment' => 'Gagal membuat payment URL dari DOKU.']);
+            return back()->withErrors([
+                'payment' => $result['message'] ?? 'Gagal membuat payment URL dari DOKU.',
+            ]);
         }
 
-        $payment->update(['payment_url' => $result['payment_url']]);
+        $payment->update([
+            'payment_url' => $result['payment_url'],
+        ]);
 
         return redirect()->away($result['payment_url']);
     }
 
-    /**
-     * ============================
-     * RETURN URL (redirect user dari DOKU)
-     * ============================
-     * Bukan sumber kebenaran utama, tetap NOTIFY.
-     */
     public function dokuReturn(Request $request)
     {
-        $invoice =
-            $request->query('invoice_number')
+        $invoice = $request->query('invoice_number')
             ?? $request->query('order_id')
             ?? $request->query('invoice')
             ?? $request->query('merchant_invoice')
@@ -262,41 +281,65 @@ class PaymentController extends Controller
         $targetRoute = $this->homeRoute();
 
         if (!$invoice) {
-            return redirect()->route($targetRoute)->with('success', 'Return DOKU diterima.');
+            return redirect()->route($targetRoute)
+                ->with('success', 'Return DOKU diterima.');
         }
 
         $payment = Payment::where('invoice_number', $invoice)->first();
 
         if (!$payment) {
-            return redirect()->route($targetRoute)->withErrors(['payment' => 'Invoice tidak ditemukan.']);
+            return redirect()->route($targetRoute)
+                ->withErrors(['payment' => 'Invoice tidak ditemukan.']);
         }
 
-        $payload = is_array($payment->payload) ? $payment->payload : (json_decode($payment->payload ?? '[]', true) ?: []);
+        $payload = is_array($payment->payload)
+            ? $payment->payload
+            : (json_decode($payment->payload ?? '[]', true) ?: []);
+
         $payload['return_query'] = $request->query();
 
-        $payment->update(['payload' => $payload]);
+        $updateData = [
+            'payload' => $payload,
+        ];
 
-        if (method_exists($payment, 'isPaid') && $payment->isPaid()) {
-            return redirect()->route($targetRoute)->with('success', 'Pembayaran berhasil.');
+        if (Schema::hasColumn('payments', 'callback_payload')) {
+            $updateData['callback_payload'] = $payload;
         }
 
-        return redirect()->route($targetRoute)->with('success', 'Status pembayaran diproses (menunggu notifikasi).');
+        $payment->update($updateData);
+
+        $statusText = strtolower((string) (
+            $request->query('status')
+            ?? $request->query('result')
+            ?? $request->query('transaction_status')
+            ?? ''
+        ));
+
+        if (in_array($statusText, ['success', 'paid', 'capture', 'settlement'], true) && (string) $payment->status !== 'paid') {
+            $payment->update([
+                'status' => 'paid',
+                'paid_at' => $payment->paid_at ?? now(),
+            ]);
+
+            $this->onPaymentPaid($payment->fresh());
+        }
+
+        if ((string) $payment->fresh()->status === 'paid') {
+            return redirect()->route($targetRoute)
+                ->with('success', 'Pembayaran berhasil. Data member telah diaktifkan.');
+        }
+
+        return redirect()->route($targetRoute)
+            ->with('success', 'Status pembayaran diproses. Silakan tunggu beberapa saat.');
     }
 
-    /**
-     * ============================
-     * NOTIFY WEBHOOK (POST) dari DOKU
-     * ============================
-     * - Validasi signature
-     * - Update status payment + simpan payload
-     */
     public function dokuNotify(Request $request)
     {
         $rawBody = $request->getContent();
 
         $headers = [];
-        foreach ($request->headers->all() as $k => $v) {
-            $headers[$k] = is_array($v) ? implode(',', $v) : (string) $v;
+        foreach ($request->headers->all() as $key => $value) {
+            $headers[$key] = is_array($value) ? implode(',', $value) : (string) $value;
         }
 
         $valid = $this->doku->verifyNotifySignature($headers, $rawBody);
@@ -329,11 +372,11 @@ class PaymentController extends Controller
         ));
 
         $newStatus = match (true) {
-            str_contains($dokuStatus, 'SUCCESS') || str_contains($dokuStatus, 'PAID') => PaymentStatus::Paid,
-            str_contains($dokuStatus, 'FAILED') => PaymentStatus::Failed,
-            str_contains($dokuStatus, 'EXPIRED') => PaymentStatus::Expired,
-            str_contains($dokuStatus, 'CANCEL') => PaymentStatus::Canceled,
-            default => PaymentStatus::Pending,
+            str_contains($dokuStatus, 'SUCCESS') || str_contains($dokuStatus, 'PAID') => 'paid',
+            str_contains($dokuStatus, 'FAILED') => 'failed',
+            str_contains($dokuStatus, 'EXPIRED') => 'expired',
+            str_contains($dokuStatus, 'CANCEL') => 'canceled',
+            default => 'pending',
         };
 
         $transactionId = data_get($data, 'transaction.id')
@@ -341,46 +384,93 @@ class PaymentController extends Controller
             ?? data_get($data, 'payment.transaction_id')
             ?? $payment->doku_transaction_id;
 
-        $payload = is_array($payment->payload) ? $payment->payload : (json_decode($payment->payload ?? '[]', true) ?: []);
+        $payload = is_array($payment->payload)
+            ? $payment->payload
+            : (json_decode($payment->payload ?? '[]', true) ?: []);
+
         $payload['notify'] = $data;
 
-        $payment->update([
+        $updateData = [
             'status' => $newStatus,
-            'paid_at' => $newStatus === PaymentStatus::Paid ? now() : $payment->paid_at,
+            'paid_at' => $newStatus === 'paid' ? now() : $payment->paid_at,
             'doku_transaction_id' => $transactionId,
             'payload' => $payload,
             'doku_request_id' => $request->header('Request-Id') ?? $request->header('x-request-id'),
             'doku_request_time' => $request->header('Request-Timestamp') ?? $request->header('x-request-timestamp'),
-        ]);
+        ];
 
-        if ($newStatus === PaymentStatus::Paid) {
-            $this->onPaymentPaid($payment);
+        if (Schema::hasColumn('payments', 'callback_payload')) {
+            $updateData['callback_payload'] = $payload;
+        }
+
+        $payment->update($updateData);
+
+        if ($newStatus === 'paid') {
+            $this->onPaymentPaid($payment->fresh());
         }
 
         return response()->json(['message' => 'OK']);
     }
 
-    /**
-     * Hook bisnis ketika payment PAID.
-     * - IURAN: buat/aktifkan member (bulk) / set valid_until / dsb
-     * - UJIAN: tandai peserta ujian paid
-     */
     protected function onPaymentPaid(Payment $payment): void
     {
-        // Isi sesuai kebutuhan modul kamu.
+        $payload = is_array($payment->payload)
+            ? $payment->payload
+            : (json_decode($payment->payload ?? '[]', true) ?: []);
+
+        $paidMembers = $payload['paid_for_members'] ?? [];
+
+        if (!is_array($paidMembers) || empty($paidMembers)) {
+            if (!empty($payment->user_id)) {
+                $user = User::find($payment->user_id);
+
+                if ($user) {
+                    $user->is_active = true;
+                    $user->role = 'member';
+                    $user->roles = ['member'];
+                    $user->save();
+                }
+            }
+
+            return;
+        }
+
+        $userIds = collect($paidMembers)
+            ->pluck('user_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($userIds)) {
+            return;
+        }
+
+        $users = User::whereIn('id', $userIds)->get();
+
+        foreach ($users as $user) {
+            $user->is_active = true;
+            $user->role = 'member';
+            $user->roles = ['member'];
+            $user->save();
+        }
     }
 
     protected function makeInvoiceNumber(string $prefix): string
     {
-        return $prefix . '-' . now()->format('Ymd') . '-' . strtoupper(Str::random(6));
+        return strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $prefix))
+            . now()->format('ymdHis')
+            . strtoupper(Str::random(4));
     }
 
     protected function homeRoute(): string
     {
         if (Auth::check()) {
-            $r = strtolower(Auth::user()->role ?? 'member');
-            return $r === 'member' ? 'dashboard' : 'admin.dashboard';
+            $role = strtolower((string) (Auth::user()->role ?? 'member'));
+            return $role === 'member' ? 'dashboard' : 'admin.dashboard';
         }
+
         return 'admin.dashboard';
     }
 
@@ -393,30 +483,25 @@ class PaymentController extends Controller
         ];
     }
 
-    /**
-     * Ambil province_id:
-     * - kalau request override diberikan (dan >0) => pakai itu
-     * - else coba dari user->province_id
-     * - else coba dari user->dojo->province_id (kalau relasi ada)
-     */
     protected function resolveProvinceId($user, int $overrideProvinceId = 0): ?int
     {
-        if ($overrideProvinceId > 0)
+        if ($overrideProvinceId > 0) {
             return $overrideProvinceId;
+        }
 
-        if (!empty($user->province_id))
+        if (!empty($user->province_id)) {
             return (int) $user->province_id;
+        }
 
-        // kalau ada relasi dojo
         if (method_exists($user, 'dojo') && $user->relationLoaded('dojo') && $user->dojo) {
             return (int) ($user->dojo->province_id ?? 0) ?: null;
         }
 
-        // coba lazy load
         if (method_exists($user, 'dojo')) {
             $dojo = $user->dojo()->first();
-            if ($dojo && !empty($dojo->province_id))
+            if ($dojo && !empty($dojo->province_id)) {
                 return (int) $dojo->province_id;
+            }
         }
 
         return null;

@@ -15,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         'role' => \App\Http\Middleware\RoleManager::class,
     ]);
     })
+->withMiddleware(function ($middleware) {
+    $middleware->validateCsrfTokens(except: [
+        'payments/doku/notify',
+    ]);
+})
+
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();
