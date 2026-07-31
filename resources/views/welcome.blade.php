@@ -312,7 +312,7 @@
                     <div class="absolute inset-8 rounded-full bg-[#941722]/20 blur-[90px]"></div>
                     <img src="{{ asset('images/hero-karate-action.webp') }}"
                         alt="Karateka SHOKAIDO melakukan pukulan lurus dalam latihan"
-                        class="relative z-0 w-[125%] max-w-none -translate-x-[10%] object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,.45)] sm:w-[115%] sm:-translate-x-[7%] lg:w-[118%] lg:-translate-x-[9%] xl:w-[125%] xl:-translate-x-[12%]"
+                        class="relative z-0 w-[105%] max-w-none -translate-x-[2.5%] object-contain drop-shadow-[0_30px_40px_rgba(0,0,0,.45)] sm:w-[115%] sm:-translate-x-[7%] lg:w-[118%] lg:-translate-x-[9%] xl:w-[125%] xl:-translate-x-[12%]"
                         width="1792" height="896" fetchpriority="high">
 
                     <aside
