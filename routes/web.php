@@ -20,7 +20,21 @@ use App\Models\User;
 use Illuminate\Http\Request;
 
 Route::get('/', function () {
-    return view('welcome');
+    $dojos = Dojo::query()
+        ->with(['city.province'])
+        ->where('is_active', true)
+        ->whereDate('sk_expiry_date', '>=', today())
+        ->whereHas('city.province', function ($query) {
+            $query->whereRaw('LOWER(name) LIKE ?', ['%sumatera utara%']);
+        })
+        ->orderBy('name')
+        ->get()
+        ->sortBy(fn(Dojo $dojo) => $dojo->city?->name ?? '')
+        ->values();
+
+    $dojoRegions = $dojos->groupBy(fn(Dojo $dojo) => $dojo->city?->name ?? 'Wilayah belum ditentukan');
+
+    return view('welcome', compact('dojos', 'dojoRegions'));
 });
 
 // ============================
