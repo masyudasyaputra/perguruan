@@ -198,6 +198,8 @@
                 <a href="#nilai" class="text-sm font-semibold text-white/55 transition hover:text-[#d6ad55]">Nilai</a>
                 <a href="#program"
                     class="text-sm font-semibold text-white/55 transition hover:text-[#d6ad55]">Program</a>
+                <a href="#agenda"
+                    class="text-sm font-semibold text-white/55 transition hover:text-[#d6ad55]">Agenda</a>
                 <a href="#dojo" class="text-sm font-semibold text-white/55 transition hover:text-[#d6ad55]">Dojo &
                     Cabang</a>
                 @auth
@@ -239,6 +241,8 @@
                     class="rounded-xl px-3 py-3 text-sm font-semibold hover:bg-white/5">Nilai</a>
                 <a href="#program" @click="menuOpen = false"
                     class="rounded-xl px-3 py-3 text-sm font-semibold hover:bg-white/5">Program</a>
+                <a href="#agenda" @click="menuOpen = false"
+                    class="rounded-xl px-3 py-3 text-sm font-semibold hover:bg-white/5">Agenda Kegiatan</a>
                 <a href="#dojo" @click="menuOpen = false"
                     class="rounded-xl px-3 py-3 text-sm font-semibold hover:bg-white/5">Dojo & Cabang</a>
                 <div class="mt-3 grid grid-cols-2 gap-3 border-t border-white/10 pt-4">
@@ -485,25 +489,54 @@
                                 '01',
                                 'Karakter',
                                 'Menjaga kejujuran, tanggung jawab, dan rasa hormat di dalam maupun di luar dojo.',
+                                'character',
                             ],
                             [
                                 '02',
                                 'Ketekunan',
                                 'Berlatih konsisten, berani menghadapi proses, dan terus memperbaiki diri setiap hari.',
+                                'perseverance',
                             ],
                             [
                                 '03',
                                 'Persaudaraan',
                                 'Tumbuh sebagai satu keluarga yang saling mendukung tanpa kehilangan semangat berprestasi.',
+                                'brotherhood',
                             ],
                         ];
                     @endphp
-                    @foreach ($values as [$number, $title, $description])
+                    @foreach ($values as [$number, $title, $description, $icon])
                         <article class="group border-white/10 px-2 py-10 md:border-l md:px-8 first:md:border-l-0">
                             <div class="mb-10 flex items-center justify-between">
                                 <span class="font-display text-lg text-[#d6ad55]">{{ $number }}</span>
                                 <span
-                                    class="h-2 w-2 rotate-45 border border-white/30 transition group-hover:bg-[#d6ad55]"></span>
+                                    class="grid h-14 w-14 place-items-center rounded-full border border-[#d6ad55]/35 bg-[#d6ad55]/5 text-[#d6ad55] transition duration-300 group-hover:border-[#941722] group-hover:bg-[#941722] group-hover:text-white">
+                                    @if ($icon === 'character')
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                            aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"
+                                                d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"
+                                                d="m9 12 2 2 4-4" />
+                                        </svg>
+                                    @elseif ($icon === 'perseverance')
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                            aria-hidden="true">
+                                            <circle cx="11" cy="13" r="7.5" stroke-width="1.7" />
+                                            <circle cx="11" cy="13" r="3" stroke-width="1.7" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"
+                                                d="m13.5 10.5 6-6M16 4.5h3.5V8" />
+                                        </svg>
+                                    @else
+                                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                            aria-hidden="true">
+                                            <circle cx="9" cy="8" r="3" stroke-width="1.7" />
+                                            <circle cx="17" cy="10" r="2.5" stroke-width="1.7" />
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"
+                                                d="M3 20v-1.5A4.5 4.5 0 0 1 7.5 14h3A4.5 4.5 0 0 1 15 18.5V20M15 15h1.5a4 4 0 0 1 4 4v1" />
+                                        </svg>
+                                    @endif
+                                </span>
                             </div>
                             <h3 class="font-display text-3xl font-bold">{{ $title }}</h3>
                             <p class="mt-4 text-sm leading-7 text-white/50">{{ $description }}</p>
@@ -572,6 +605,111 @@
                         </article>
                     @endforeach
                 </div>
+            </div>
+        </section>
+
+        <section id="agenda" class="relative scroll-mt-20 overflow-hidden bg-[#171515] py-24 text-white sm:py-32">
+            <div class="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full border border-[#d6ad55]/10">
+            </div>
+            <div class="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full border border-[#941722]/25">
+            </div>
+            <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d6ad55]/30 to-transparent">
+            </div>
+
+            <div class="relative mx-auto max-w-7xl px-5 lg:px-8">
+                <div class="mb-14 flex flex-col justify-between gap-7 md:flex-row md:items-end">
+                    <div>
+                        <p class="mb-5 flex items-center gap-3 text-[10px] font-extrabold uppercase tracking-[.3em] text-[#d6ad55]">
+                            <span class="h-px w-9 bg-[#d6ad55]"></span> Kalender SHOKAIDO SUMUT
+                        </p>
+                        <h2 class="font-display max-w-2xl text-4xl font-black leading-[.95] sm:text-6xl">Agenda
+                            <span class="text-[#d6ad55]">kegiatan.</span>
+                        </h2>
+                    </div>
+                    <p class="max-w-md text-sm leading-7 text-white/50">Pantau jadwal kegiatan dan ujian resmi di
+                        lingkungan SHOKAIDO Pengprov Sumatera Utara.</p>
+                </div>
+
+                @if ($agendas->isNotEmpty())
+                    <div class="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($agendas as $agenda)
+                            @php
+                                $agendaMonths = [
+                                    1 => 'JAN', 2 => 'FEB', 3 => 'MAR', 4 => 'APR', 5 => 'MEI', 6 => 'JUN',
+                                    7 => 'JUL', 8 => 'AGU', 9 => 'SEP', 10 => 'OKT', 11 => 'NOV', 12 => 'DES',
+                                ];
+                            @endphp
+                            <article
+                                class="group relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#0a0a0a] p-7 transition duration-300 hover:-translate-y-1 hover:border-[#d6ad55]/40">
+                                <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#941722] to-[#d6ad55]"></div>
+                                <div class="flex items-start justify-between gap-5">
+                                    <time datetime="{{ $agenda->execution_date->toDateString() }}"
+                                        class="flex h-20 w-20 shrink-0 flex-col items-center justify-center rounded-2xl bg-[#941722] text-center shadow-lg shadow-[#941722]/15">
+                                        <span class="font-display text-3xl font-black leading-none">{{ $agenda->execution_date->format('d') }}</span>
+                                        <span class="mt-1 text-[9px] font-extrabold uppercase tracking-[.18em] text-[#f1cf86]">
+                                            {{ $agendaMonths[(int) $agenda->execution_date->format('n')] }}
+                                            {{ $agenda->execution_date->format('Y') }}
+                                        </span>
+                                    </time>
+                                    <span
+                                        class="rounded-full border border-[#d6ad55]/25 bg-[#d6ad55]/10 px-3 py-2 text-[8px] font-extrabold uppercase tracking-[.16em] text-[#e7c57f]">
+                                        {{ $agenda->status === 'ongoing' ? 'Berlangsung' : 'Pendaftaran dibuka' }}
+                                    </span>
+                                </div>
+
+                                <p class="mt-8 text-[9px] font-extrabold uppercase tracking-[.2em] text-[#d6ad55]">Agenda
+                                    resmi</p>
+                                <h3 class="mt-3 font-display text-2xl font-black leading-tight">{{ $agenda->name }}</h3>
+
+                                <div class="mt-7 space-y-3 border-t border-white/10 pt-6 text-sm text-white/50">
+                                    <p class="flex items-start gap-3">
+                                        <svg class="mt-0.5 h-4 w-4 shrink-0 text-[#d6ad55]" fill="none"
+                                            stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                                d="M12 21s7-6.1 7-12A7 7 0 1 0 5 9c0 5.9 7 12 7 12Z" />
+                                            <circle cx="12" cy="9" r="2.2" stroke-width="1.8" />
+                                        </svg>
+                                        <span>{{ $agenda->location }}</span>
+                                    </p>
+                                    @if ($agenda->province)
+                                        <p class="flex items-center gap-3">
+                                            <svg class="h-4 w-4 shrink-0 text-[#d6ad55]" fill="none"
+                                                stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                                                    d="M4 19.5V6.8L12 3l8 3.8v12.7M8 21V9h8v12M3 21h18" />
+                                            </svg>
+                                            <span>{{ $agenda->province->name }}</span>
+                                        </p>
+                                    @endif
+                                </div>
+                            </article>
+                        @endforeach
+                    </div>
+                @else
+                    <div
+                        class="grid gap-8 overflow-hidden rounded-[2rem] border border-white/10 bg-[#0a0a0a] p-8 sm:p-10 md:grid-cols-[auto_1fr] md:items-center">
+                        <span
+                            class="grid h-20 w-20 place-items-center rounded-2xl bg-[#941722] text-[#f1cf86] shadow-xl shadow-[#941722]/15">
+                            <svg class="h-9 w-9" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                                aria-hidden="true">
+                                <rect x="3" y="5" width="18" height="16" rx="2" stroke-width="1.7" />
+                                <path stroke-linecap="round" stroke-width="1.7" d="M8 3v4M16 3v4M3 10h18" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7"
+                                    d="m9.5 15 1.7 1.7 3.5-3.7" />
+                            </svg>
+                        </span>
+                        <div>
+                            <p class="text-[9px] font-extrabold uppercase tracking-[.2em] text-[#d6ad55]">Segera hadir</p>
+                            <h3 class="mt-2 font-display text-2xl font-black sm:text-3xl">Agenda berikutnya sedang
+                                disiapkan.</h3>
+                            <p class="mt-3 max-w-2xl text-sm leading-7 text-white/50">Jadwal resmi kegiatan SHOKAIDO
+                                Sumatera Utara akan tampil di sini setelah pendaftaran dibuka.</p>
+                        </div>
+                    </div>
+                @endif
+
+                <p class="mt-6 text-xs leading-6 text-white/35">Jadwal dapat berubah mengikuti keputusan panitia dan
+                    pengurus wilayah.</p>
             </div>
         </section>
 
@@ -816,6 +954,7 @@
                     <a href="#tentang" class="transition hover:text-white">Tentang kami</a>
                     <a href="#nilai" class="transition hover:text-white">Nilai organisasi</a>
                     <a href="#program" class="transition hover:text-white">Program pembinaan</a>
+                    <a href="#agenda" class="transition hover:text-white">Agenda kegiatan</a>
                     <a href="#dojo" class="transition hover:text-white">Dojo & cabang</a>
                 </nav>
             </div>

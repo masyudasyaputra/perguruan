@@ -16,6 +16,7 @@ use App\Http\Controllers\PaymentController;
 use Illuminate\Support\Facades\Route;
 use App\Models\City;
 use App\Models\Dojo;
+use App\Models\Exam;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -34,7 +35,18 @@ Route::get('/', function () {
 
     $dojoRegions = $dojos->groupBy(fn(Dojo $dojo) => $dojo->city?->name ?? 'Wilayah belum ditentukan');
 
-    return view('welcome', compact('dojos', 'dojoRegions'));
+    $agendas = Exam::query()
+        ->with('province')
+        ->whereDate('execution_date', '>=', today())
+        ->whereIn('status', ['open', 'ongoing'])
+        ->whereHas('province', function ($query) {
+            $query->whereRaw('LOWER(name) LIKE ?', ['%sumatera utara%']);
+        })
+        ->orderBy('execution_date')
+        ->limit(6)
+        ->get();
+
+    return view('welcome', compact('dojos', 'dojoRegions', 'agendas'));
 });
 
 // ============================
